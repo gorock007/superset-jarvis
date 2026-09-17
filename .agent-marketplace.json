@@ -15,9 +15,11 @@
 			},
 			"category": "development",
 			"source": "./plugins/jarvis",
-			"version": "0.1.0"
+			"version": "0.1.1"
 		}
 	],
-	"featured": ["jarvis"],
+	"featured": [
+		"jarvis"
+	],
 	"renames": {}
 }

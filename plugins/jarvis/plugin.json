@@ -1,7 +1,7 @@
 {
 	"$schema": "https://superset.sh/schemas/plugin/1.0.0.json",
 	"name": "jarvis",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "One main agent you talk to; workers on separate Superset terminals do the building. Model routing across Claude Code and Codex, a shared-checkout worker contract, and a handoff/OPEN.md system.",
 	"author": {
 		"name": "Gorock",
@@ -10,7 +10,14 @@
 	"homepage": "https://github.com/gorock007/superset-jarvis",
 	"repository": "https://github.com/gorock007/superset-jarvis",
 	"license": "MIT",
-	"keywords": ["superset", "orchestration", "multi-agent", "claude-code", "codex", "workflow"],
+	"keywords": [
+		"superset",
+		"orchestration",
+		"multi-agent",
+		"claude-code",
+		"codex",
+		"workflow"
+	],
 	"extensions": {
 		"superset": {
 			"interface": {
