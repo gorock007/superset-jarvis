@@ -1,0 +1,13 @@
+{
+	"name": "jarvis",
+	"version": "0.1.0",
+	"description": "Run one main agent (Jarvis) that delegates building to worker agents on separate Superset terminals, with model routing across Claude Code and Codex and a handoff system.",
+	"author": {
+		"name": "Gorock",
+		"url": "https://github.com/gorock007"
+	},
+	"homepage": "https://github.com/gorock007/superset-jarvis",
+	"repository": "https://github.com/gorock007/superset-jarvis",
+	"license": "MIT",
+	"keywords": ["superset", "orchestration", "multi-agent", "workflow"]
+}

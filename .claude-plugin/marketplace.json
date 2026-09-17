@@ -1,0 +1,14 @@
+{
+	"name": "superset-jarvis",
+	"owner": {
+		"name": "Gorock",
+		"url": "https://github.com/gorock007"
+	},
+	"plugins": [
+		{
+			"name": "jarvis",
+			"source": "./plugins/jarvis",
+			"description": "One main agent (Jarvis) you talk to; workers on separate Superset terminals do the building. Model routing across Claude Code and Codex, shared-checkout worker contract, handoff/OPEN.md system."
+		}
+	]
+}
