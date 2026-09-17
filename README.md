@@ -104,19 +104,7 @@ models instead.
 
 Pick **one** of these.
 
-### Option 1: Superset plugin marketplace (recommended)
-
-From any Superset terminal:
-
-```bash
-superset plugins marketplace add gorock007/superset-jarvis
-superset plugins install jarvis
-```
-
-The skills are installed to `~/.agents/skills/`, which Codex, Vibe, and Kimi
-read directly, and copied to `~/.claude/skills/` for Claude Code.
-
-### Option 2: Claude Code plugin marketplace
+### Option 1: Claude Code plugin marketplace (recommended)
 
 Inside Claude Code:
 
@@ -125,15 +113,20 @@ Inside Claude Code:
 /plugin install jarvis@superset-jarvis
 ```
 
-### Option 3: Skills only
+Updates arrive through `/plugin`, and the skills are named `jarvis:setup`
+and `jarvis:run`.
 
-For any agent that reads `SKILL.md` files:
+### Option 2: Skills CLI
+
+For Claude Code, Codex, or any agent that reads `SKILL.md` files:
 
 ```bash
 npx skills add gorock007/superset-jarvis
 ```
 
-### Option 4: Manual
+It finds two skills, `setup` and `run`. Install both.
+
+### Option 3: Manual
 
 ```bash
 git clone https://github.com/gorock007/superset-jarvis.git

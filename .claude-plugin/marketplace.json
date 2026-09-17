@@ -4,6 +4,9 @@
 		"name": "Gorock",
 		"url": "https://github.com/gorock007"
 	},
+	"metadata": {
+		"description": "The Jarvis workflow for Superset: one main agent you talk to, workers on separate Superset terminals that do the building."
+	},
 	"plugins": [
 		{
 			"name": "jarvis",
