@@ -34,15 +34,33 @@ ready() { # prints the reason and returns 1 when Jev can't be used
 }
 
 # Strip ANSI escapes and mask anything secret-shaped before it leaves the machine.
+# Shapes follow auto-model-router's scrubber (MIT). A net, not a guarantee: it
+# errs toward masking too much (`name: value` after a credential-like name), and text with no recognisable shape gets through.
 clean() {
-  sed -E $'s/\x1b\\[[0-9;?]*[A-Za-z]//g' | sed -E \
+  sed -E $'s/\x1b\\[[0-9;?]*[A-Za-z]//g' | awk '
+    BEGIN {
+      for (k in ENVIRON) if (length(ENVIRON[k]) >= 8 && toupper(k) ~ /KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL/) v[++n] = ENVIRON[k]
+    }
+    /-----BEGIN [A-Z ]*(PRIVATE KEY|CERTIFICATE)-----/ { print "[REDACTED]"; if ($0 !~ /-----END /) pem = 1; next }
+    pem { if ($0 ~ /-----END /) pem = 0; next }
+    {
+      for (i = 1; i <= n; i++) {
+        out = ""
+        while ((at = index($0, v[i])) > 0) { out = out substr($0, 1, at - 1) "[REDACTED]"; $0 = substr($0, at + length(v[i])) }
+        $0 = out $0
+      }
+      print
+    }' | sed -E \
+    -e 's/(^|[^A-Za-z])([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo]?[Rr]?[Dd]|[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll])(s?([_.-][A-Za-z0-9_.-]{0,40}|[A-Z0-9_]{0,40})?["'"'"']?[ \t]*[:=][ \t]*)("[^"]*"|'"'"'[^'"'"']*'"'"'|[^][:space:],;}]{4,})/\1\2\3[REDACTED]/g' \
+    -e 's/([a-z])(Key|Token|Secret|Password|Credential)(s?([_.-][A-Za-z0-9_.-]{0,40}|[A-Z0-9_]{0,40})?["'"'"']?[ \t]*[:=][ \t]*)("[^"]*"|'"'"'[^'"'"']*'"'"'|[^][:space:],;}]{4,})/\1\2\3[REDACTED]/g' \
     -e 's/eyJ[A-Za-z0-9_-]{8,}(\.[A-Za-z0-9._-]+)?/[REDACTED]/g' \
     -e 's/(sk|pk|rk)[-_][A-Za-z0-9_-]{12,}/[REDACTED]/g' \
-    -e 's/(gh[pousr]|xox[abprs]|glpat)[-_][A-Za-z0-9_-]{12,}/[REDACTED]/g' \
-    -e 's/AKIA[A-Z0-9]{16}/[REDACTED]/g' \
+    -e 's/(gh[pousr]|xox[abprs]|glpat|github_pat|hf)[-_][A-Za-z0-9_-]{12,}/[REDACTED]/g' \
+    -e 's/AIza[A-Za-z0-9_-]{30,}/[REDACTED]/g' \
+    -e 's/(AKIA|ASIA|AGPA|AIDA|AROA)[A-Z0-9]{16}/[REDACTED]/g' \
     -e 's/((Set-)?Cookie: *[A-Za-z0-9_.-]+=)[^;[:space:]]+/\1[REDACTED]/g' \
-    -e 's/(Bearer|Basic) +[A-Za-z0-9._~+\/=-]{8,}/\1 [REDACTED]/g' \
-    -e 's/([A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD)[A-Z0-9_]*)([=:] *)[^[:space:]]{4,}/\1\3[REDACTED]/g'
+    -e 's/(Bearer|Basic|bearer|basic) +[A-Za-z0-9._~+\/=-]{8,}/\1 [REDACTED]/g' \
+    -e 's#([A-Za-z][A-Za-z0-9+.-]*://)[^[:space:]/@:]+:[^[:space:]/@]+@#\1[REDACTED]@#g'
 }
 
 # $1 = payload JSON. Prints the response JSON plus {seconds}. Returns 3 on
