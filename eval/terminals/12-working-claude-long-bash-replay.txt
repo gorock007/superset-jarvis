@@ -1,0 +1,36 @@
+⏺ The regression test now fails the way production does: two confirms for one
+  cart race past the status check. Adding select_for_update on the cart row.
+
+⏺ Update(checkout/services/confirm.py)
+  ⎿  Updated checkout/services/confirm.py with 4 additions and 2 removals
+       38    def confirm(cart_id: int, idempotency_key: str) -> Order:
+       39 -      cart = Cart.objects.get(pk=cart_id)
+       40 -      if cart.status != Cart.OPEN:
+       39 +      with transaction.atomic():
+       40 +          cart = Cart.objects.select_for_update().get(pk=cart_id)
+       41 +          if cart.status != Cart.OPEN:
+       42 +              return Order.objects.get(cart=cart)
+
+⏺ Bash(pytest tests/checkout -q)
+  ⎿  ........................................                         [100%]
+     40 passed in 6.12s
+
+⏺ All green, including test_confirm_race.py. Now the replay against a local
+  server to check the error rate under concurrency.
+
+⏺ Bash(python scripts/replay_confirm.py --n 500 --concurrency 20)
+  ⎿  replaying 500 confirm requests, concurrency=20
+     [ 50/500] errors: 0
+     [100/500] errors: 0
+     [150/500] errors: 0
+     [200/500] errors: 0
+     [250/500] errors: 0
+     … +0 lines (ctrl+o to expand)
+     Running… (1m 48s)
+
+✽ Replaying… (4m 02s · ↓ 12.0k tokens · esc to interrupt)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts                                       Context left until auto-compact: 34%

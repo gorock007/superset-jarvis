@@ -1,0 +1,44 @@
+• Added crates/parser/tests/lexer_cases.rs (+212 -0)
+     1 +use parser::lexer::{lex, LexError};
+     2 +
+     3 +const CASES: &[(&str, &str)] = &[
+     4 +    ("ident_simple", "foo"),
+     5 +    ("ident_underscore", "_foo_bar1"),
+     6 +    ("int_zero", "0"),
+     7 +    ("int_underscores", "1_000_000"),
+     8 +    ("float_exp", "1.5e-3"),
+     9 +    ("string_escapes", r#""a\n\t\"b""#),
+    10 +    ("nested_comment", "/* a /* b */ c */ x"),
+     ⋮
+   205 +#[test]
+   206 +fn lexer_cases() {
+   207 +    for (name, input) in CASES {
+   208 +        insta::assert_debug_snapshot!(*name, lex(input));
+   209 +    }
+   210 +}
+
+• Ran cargo test -p parser --test lexer_cases
+  └ running 3 tests
+    test error_variants ... ok
+    test unterminated_string_reports_span ... ok
+    test lexer_cases ... FAILED
+    … +18 lines
+    stored new snapshot crates/parser/tests/snapshots/lexer_cases__float_exp.snap.new
+
+• First run stores the snapshots as .new files, which is expected. I'll review
+  them and accept, then re-run with coverage.
+
+• Ran cargo insta accept
+  └ insta review finished
+    accepted: 64 snapshots
+
+• Running cargo llvm-cov -p parser --fail-under-lines 90
+  └    Compiling parser v0.4.1 (/Users/dev/code/tinylang/crates/parser)
+       Compiling insta v1.43.1
+
+• Working (52s • esc to interrupt)
+
+
+› Explain this codebase
+
+  gpt-5.6-terra medium · 80% context left · ~/code/tinylang

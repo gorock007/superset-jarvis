@@ -184,6 +184,9 @@ Jarvis is the longest-running, most expensive session here. Details in
 - **`/clear` between unrelated work** (free) and `/compact` at merge
   boundaries, steered: `/compact Focus on open decisions, current briefs,
   file paths`. `OPEN.md` is what makes this safe — write state down first.
+- **Jev** (optional): `handoffs/bin/jev.sh brief <file>` lints a brief before
+  a spawn, `triage <ids>` polls at one line per worker, `outcome <file>
+  <result>` at merge. It advises, never decides; `jev: skipped` = carry on.
 - Say it in one line when a choice was made for cost ("briefing this tightly
   so it runs on opencode") — never degrade work silently.
 

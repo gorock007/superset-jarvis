@@ -1,0 +1,47 @@
+• The benchmark needs the pg_trgm extension in the local database before the
+  index migration can run.
+
+  Would you like to run the following command?
+
+  Reason: enable pg_trgm in the local dev database so the GIN index can be created
+
+  $ psql postgresql://localhost:5432/shop_dev -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"
+
+  1. Yes, proceed (y)
+  2. Yes, and don't ask again for this command (a)
+  3. No, and tell Codex what to do differently (esc)
+
+✔ You approved codex to run psql postgresql://localhost:5432/shop_dev -c "CREATE EXTENSION ... this time
+
+• Ran psql postgresql://localhost:5432/shop_dev -c "CREATE EXTENSION IF NOT EXISTS pg_trgm"
+  └ CREATE EXTENSION
+
+• Added search/migrations/0019_search_indexes.py (+19 -0)
+     1 +from django.contrib.postgres.indexes import GinIndex
+     2 +from django.contrib.postgres.operations import TrigramExtension
+     3 +from django.db import migrations
+     4 +
+     5 +
+     6 +class Migration(migrations.Migration):
+     7 +    atomic = False
+     8 +    dependencies = [("search", "0018_product_slug")]
+     9 +    operations = [
+    10 +        TrigramExtension(),
+    11 +        migrations.AddIndex(
+    12 +            model_name="product",
+    13 +            index=GinIndex(fields=["name"], name="product_name_trgm",
+    14 +                           opclasses=["gin_trgm_ops"]),
+    15 +        ),
+    16 +    ]
+
+• Ran python manage.py migrate search
+  └ Applying search.0019_search_indexes... OK
+
+• Running python bench/search_bench.py --rows 1000000 --p95-max 200
+
+• Working (2m 26s • esc to interrupt)
+
+
+› Find and fix a bug in @filename
+
+  gpt-5.6-sol high · 64% context left · ~/work/shop

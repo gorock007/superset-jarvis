@@ -1,0 +1,36 @@
+   ⚙ bash   npx prettier --write packages/web --ignore-path .prettierignore
+            packages/web/src/App.tsx 41ms
+            packages/web/src/components/Nav.tsx 12ms
+            packages/web/src/components/Table.tsx 23ms
+            packages/web/src/pages/Home.tsx 9ms (unchanged)
+            packages/web/src/pages/Reports.tsx 31ms
+            ... 112 more files
+
+   ⚙ bash   npx prettier --check packages/web
+            Checking formatting...
+            All matched files use Prettier code style!
+
+   ⚙ bash   git status --short | grep -v "^ M packages/web/" | wc -l
+            0
+
+   ⚙ bash   git status --short | grep "packages/web/public/" | wc -l
+            0
+
+   ⚙ write  handoffs/inbox/2026-09-15-prettier-web-package.md
+
+   Done.
+
+   - Formatted packages/web with the repo's Prettier config: 74 files changed,
+     43 already formatted.
+   - npx prettier --check packages/web passes.
+   - Nothing outside packages/web changed and packages/web/public/ was not
+     touched (it is in .prettierignore).
+   - Handoff: handoffs/inbox/2026-09-15-prettier-web-package.md
+
+   ┃
+   ┃
+   ┃
+   ┃  Build  muse-spark  OpenCode Zen
+   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+   enter send                           tab agents  ctrl+p commands
+   ~/work/dash:chore/prettier-web                          14.8K  7%  $0.00

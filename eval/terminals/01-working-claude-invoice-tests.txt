@@ -1,0 +1,43 @@
+⏺ I'll check how the app loads its settings before touching the tests.
+
+⏺ Read(app/settings.py)
+  ⎿  Read 41 lines
+
+⏺ Bash(cat .env.test)
+  ⎿  DATABASE_URL=postgresql://app:app@localhost:5433/app_test
+     OPENAI_API_KEY=sk-proj-FAKE1234567890abcdef
+     SUMMARY_MODEL=gpt-5.6-luna
+     LOG_LEVEL=warning
+
+⏺ The test env already has what the summariser needs. Writing the router
+  tests now, following tests/routers/test_orders.py.
+
+⏺ Write(tests/routers/test_invoices.py)
+  ⎿  Wrote 86 lines to tests/routers/test_invoices.py
+     import pytest
+     from httpx import AsyncClient
+
+     from tests.factories import InvoiceFactory, UserFactory
+
+     pytestmark = pytest.mark.asyncio
+     … +79 lines (ctrl+o to expand)
+
+⏺ Update(app/main.py)
+  ⎿  Updated app/main.py with 2 additions
+       12    from app.routers import health
+       13    from app.routers import orders
+       14 +  from app.routers import invoices
+       15
+       16    app = FastAPI(title="ledger-api")
+       17    app.include_router(orders.router, prefix="/v1")
+       18 +  app.include_router(invoices.router, prefix="/v1")
+
+⏺ Bash(pytest tests/routers/test_invoices.py -q)
+  ⎿  Running…
+
+✢ Verifying… (1m 12s · ↓ 3.4k tokens · esc to interrupt)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ⏵⏵ accept edits on (shift+tab to cycle)

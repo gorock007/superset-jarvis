@@ -1,0 +1,50 @@
+⏺ Now the middleware itself. It uses the token bucket from limiter/bucket.py
+  and returns 429 with a Retry-After header.
+
+⏺ Write(app/middleware/rate_limit.py)
+  ⎿  Wrote 58 lines to app/middleware/rate_limit.py
+     """Per-API-key rate limit middleware."""
+     from starlette.middleware.base import BaseHTTPMiddleware
+     from starlette.responses import JSONResponse
+
+     from app.limiter.bucket import TokenBucket
+
+     RATE_LIMIT_MESSAGE = "Rate limit exceeded, try again in {seconds}s"
+     … +51 lines (ctrl+o to expand)
+
+⏺ Update(app/middleware/rate_limit.py)
+  ⎿  Updated app/middleware/rate_limit.py with 9 additions and 2 removals
+       31            bucket = self.buckets.get(api_key)
+       32            allowed, retry_after = bucket.take()
+       33 -          if not allowed:
+       34 -              return JSONResponse({"error": "too many requests"}, 429)
+       33 +          if not allowed:
+       34 +              # rate limit reached for this key: tell the client when to retry
+       35 +              return JSONResponse(
+       36 +                  {
+       37 +                      "error": "rate_limit_exceeded",
+       38 +                      "message": RATE_LIMIT_MESSAGE.format(seconds=retry_after),
+       39 +                  },
+       40 +                  status_code=429,
+       41 +                  headers={"Retry-After": str(retry_after)},
+       42 +              )
+
+⏺ Bash(pytest tests/middleware/test_rate_limit.py -q)
+  ⎿  ....F.                                                           [100%]
+     FAILED tests/middleware/test_rate_limit.py::test_limit_resets_after_window
+     E   assert 429 == 200
+     1 failed, 5 passed in 0.61s
+
+⏺ The window reset test fails because the bucket refills on wall-clock time
+  and the test freezes time with freezegun. Let me look at how take() reads
+  the clock.
+
+⏺ Read(app/limiter/bucket.py)
+  ⎿  Read 47 lines
+
+✻ Pondering… (2m 4s · ↓ 5.9k tokens · esc to interrupt)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts

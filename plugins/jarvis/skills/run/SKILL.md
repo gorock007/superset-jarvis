@@ -84,7 +84,15 @@ state what done looks like and how to verify it?* If yes, `opus`/`high` (or
 `gpt-5.6-sol`) carries most work comfortably; save `fable` for tasks where
 the worker must decide the shape. Then apply the band: in amber, a
 `fable`-tier brief spawns on `opus` and the header says why
-(`model: opus (amber band; fable-tier task)`). Then spawn in **this** workspace:
+(`model: opus (amber band; fable-tier task)`).
+
+If the repo has `handoffs/bin/jev.sh`, run `handoffs/bin/jev.sh brief
+handoffs/briefs/<file>.md` once the header is filled in. It checks the five
+things above and names the ones the brief is missing: add them, or — if one
+genuinely can't be written — take that as confirmation of a `fable` or split
+case. It also logs its own tier verdict beside yours without showing it; the
+model is still your call (`references/jev.md`). `jev: skipped (…)` means carry
+on as before. Then spawn in **this** workspace:
 
 ```bash
 superset agents create --workspace "$SUPERSET_WORKSPACE_ID" \
@@ -112,7 +120,8 @@ For a task that must read an image or a design, pass it with
 Poll, don't hover. Every few minutes, or when the user asks:
 
 ```bash
-superset terminals read --workspace "$SUPERSET_WORKSPACE_ID" --terminal <id> --max-lines 60
+handoffs/bin/jev.sh triage <id1> <id2> <id3>   # one line per worker; shows the screen only when something needs you
+superset terminals read --workspace "$SUPERSET_WORKSPACE_ID" --terminal <id> --max-lines 60   # no jev.sh, or you need the full screen
 ```
 
 Then decide:
@@ -157,7 +166,10 @@ list is the contract.
    `Co-Authored-By: Claude Code <fable> worker`). Move the handoff into
    `handoffs/merged/` and include the move in the same commit. Push.
 5. `terminals close` the worker's terminal. Remove its line from
-   **Running workers**. Add any follow-up to **To-do**.
+   **Running workers**. Add any follow-up to **To-do**. With `jev.sh`
+   present, record how the brief went — `handoffs/bin/jev.sh outcome
+   handoffs/briefs/<file>.md <clean|corrected|escalated|respawned>` — the
+   log is only worth something if outcomes are in it.
 6. End the batch with the verification list from `CLAUDE.md` (what the
    user should look at, and where), and re-read `/usage` — a merge batch is
    the natural moment to move the band.
@@ -185,11 +197,16 @@ detail in `references/efficiency.md`; the habits:
   tool call per worker, and keep `--max-lines` small:
 
   ```bash
-  for t in <id1> <id2> <id3>; do superset terminals read --workspace "$SUPERSET_WORKSPACE_ID" --terminal $t --max-lines 25; done
+  handoffs/bin/jev.sh triage <id1> <id2> <id3>
   ls -t handoffs/*.md | head -5
   ```
 
-  The handoff file is the signal; the terminal is the debugger.
+  `triage` prints `<id> working (0.94)` for a worker that needs nothing, and
+  adds the last 15 lines of the screen for one that is blocked, asking,
+  limited, finished, stuck, or that it isn't sure about — so a quiet fleet
+  costs you three lines, not seventy-five. Without `jev.sh` (or when it says
+  `skipped`), loop `superset terminals read … --max-lines 25` over the ids
+  instead. The handoff file is the signal; the terminal is the debugger.
 - **Read narrowly:** `rg -n "…" -C3`, `head`, `sed -n '40,80p'`,
   `git diff --stat` before `git diff`. Reading a 2,000-line file to check one
   function is the quietest waste in an orchestrator session.

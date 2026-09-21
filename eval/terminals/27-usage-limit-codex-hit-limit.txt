@@ -1,0 +1,33 @@
+• Edited server/auth/session.ts (+11 -4)
+    27  export function sessionOptions(cfg: AuthConfig): SessionOptions {
+    28    return {
+    29      name: "sid",
+    30 -    cookie: { maxAge: cfg.sessionMaxAgeMs },
+    30 +    cookie: {
+    31 +      httpOnly: true,
+    32 +      secure: cfg.env !== "development",
+    33 +      sameSite: "lax",
+    34 +      maxAge: cfg.sessionAbsoluteMs,
+    35 +    },
+    36 +    rolling: false,
+
+• Ran npm test -- server/auth/session.test.ts
+  └ PASS server/auth/session.test.ts
+      cookie flags
+        ✓ sets HttpOnly, Secure and SameSite=Lax (41 ms)
+      expiry
+        ✓ expires absolutely after 12h (12 ms)
+        ✕ expires after 30 min idle (9 ms)
+    … +14 lines
+    Tests: 1 failed, 2 passed, 3 total
+
+• The idle expiry is not implemented yet; that is the next phase. I'll add a
+  lastSeenAt check to the session middleware.
+
+■ You've hit your usage limit. Upgrade to Pro (https://openai.com/chatgpt/pricing)
+  or try again in 2 hours 41 minutes.
+
+
+›
+
+  gpt-5.6-sol high · 66% context left · ~/work/portal

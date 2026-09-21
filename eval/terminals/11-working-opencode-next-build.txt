@@ -1,0 +1,35 @@
+   ⚙ edit   app/(dashboard)/reports/page.tsx
+   ⚙ edit   app/(dashboard)/reports/loading.tsx
+   ⚙ bash   git rm -q pages/reports.tsx
+   ⚙ edit   docs/migration/pages-checklist.md
+
+      - [ ] /reports            getServerSideProps -> async server component
+      + [x] /reports            getServerSideProps -> async server component
+
+   That is 17 of 38. Building to catch anything that still imports from the
+   removed page modules before I go on to the remaining dashboard routes.
+
+   ⚙ bash   npm run build
+
+            > acme-web@2.4.0 build
+            > next build
+
+               ▲ Next.js 15.4.2
+               - Environments: .env.local
+
+               Creating an optimized production build ...
+             ✓ Compiled successfully in 41s
+               Linting and checking validity of types ...
+               Collecting page data ...
+               Generating static pages (11/46)
+            running...
+
+   ⬝■■■■⬝⬝⬝  Working...                                      esc interrupt
+
+   ┃
+   ┃
+   ┃
+   ┃  Build  muse-spark  OpenCode Zen
+   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                        tab agents  ctrl+p commands
+   ~/work/acme-web:chore/app-router-migration              61.0K  30%  $0.00

@@ -1,0 +1,31 @@
+⏺ Bash(grep -rn "REDIS_URI" . --exclude-dir=.git | head -20)
+  ⎿  ./config/settings.py:31:REDIS_URI = env("REDIS_URI")
+     ./.env.example:9:REDIS_URI=redis://localhost:6379/0
+     ./docker-compose.yml:22:      REDIS_URI: redis://redis:6379/0
+     ./deploy/helm/values.yaml:48:  REDIS_URI: "{{ .Values.redis.uri }}"
+     ./deploy/helm/values-prod.yaml:17:  REDIS_URI: redis://redis-master.prod:6379/0
+     ./workers/queue.py:8:broker = settings.REDIS_URI
+
+⏺ I found six occurrences. Four are in files I'm allowed to change. Two are
+  under deploy/, which the brief lists under "Must not touch", and one is in
+  workers/queue.py, which the brief does not mention at all.
+
+  If I rename only the allowed files, the app will read REDIS_URL while the
+  Helm charts still set REDIS_URI, and the next deploy will start without a
+  Redis connection.
+
+  Two questions:
+
+  1. May I edit workers/queue.py? It only needs settings.REDIS_URI changed
+     to settings.REDIS_URL and it is clearly part of the rename.
+  2. For deploy/: should I leave it and flag it in the handoff for ops, or do
+     you want a temporary fallback in config/settings.py that reads the old
+     name too? The brief says "no fallback", which is why I'm asking rather
+     than adding one.
+
+  Nothing has been changed yet.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts

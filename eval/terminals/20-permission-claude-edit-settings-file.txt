@@ -1,0 +1,34 @@
+⏺ Read(config/settings.py)
+  ⎿  Read 74 lines
+
+⏺ Read(.env.example)
+  ⎿  Read 18 lines
+
+⏺ Three files to change. Starting with the settings module.
+
+⏺ Update(config/settings.py)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Edit file                                                                    │
+│ ╭──────────────────────────────────────────────────────────────────────────╮ │
+│ │ config/settings.py                                                       │ │
+│ │                                                                          │ │
+│ │   29    DATABASE_URL = env("DATABASE_URL")                               │ │
+│ │   30                                                                     │ │
+│ │   31 -  REDIS_URI = env("REDIS_URI")                                     │ │
+│ │   31 +  REDIS_URL = env("REDIS_URL")                                     │ │
+│ │   32                                                                     │ │
+│ │   33    CACHES = {                                                       │ │
+│ │   34        "default": {                                                 │ │
+│ │   35            "BACKEND": "django_redis.cache.RedisCache",              │ │
+│ │   36 -          "LOCATION": REDIS_URI,                                   │ │
+│ │   36 +          "LOCATION": REDIS_URL,                                   │ │
+│ │   37        }                                                            │ │
+│ │   38    }                                                                │ │
+│ ╰──────────────────────────────────────────────────────────────────────────╯ │
+│ Do you want to make this edit to settings.py?                                │
+│ ❯ 1. Yes                                                                     │
+│   2. Yes, allow all edits during this session (shift+tab)                    │
+│   3. No, and tell Claude what to do differently (esc)                        │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯

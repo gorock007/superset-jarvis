@@ -219,7 +219,16 @@ that agent accepts. Pick the same tier from that list (newest flagship →
 Top; the balanced one → Workhorse; the cheap one → Light/Trivial) and, if it
 recurs, update the table in `CLAUDE.md` so future sessions don't hit it.
 
-## 7. Writing it down
+## 7. The shadow classifier
+
+Where the repo has `handoffs/bin/jev.sh`, `jev.sh brief <file>` also logs a
+tier of its own beside yours. It has **no authority**: it never prints its
+verdict, and nothing in this file changes because of it. It exists to find
+out, over thirty-odd briefs with recorded outcomes, whether a cheap classifier
+agrees with you and whether it's right when it doesn't. The rule for what
+happens then is in `references/jev.md`.
+
+## 8. Writing it down
 
 Every brief header carries `worker:`, `model:`, `effort:` — and, when the
 band changed the choice, a note (`model: opus (amber band; fable-tier task)`).

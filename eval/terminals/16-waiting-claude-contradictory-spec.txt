@@ -1,0 +1,32 @@
+⏺ Read(docs/specs/transactions-export.md)
+  ⎿  Read 34 lines
+
+⏺ Read(app/api/export/route.ts)
+  ⎿  Error: File does not exist.
+
+⏺ Search(pattern: "text/csv", path: "app")
+  ⎿  Found 1 file (ctrl+o to expand)
+
+⏺ I've read the spec and I'm stopping before writing code, because two of its
+  requirements cannot both be met and the choice affects the file format that
+  Finance will depend on.
+
+  1. "The export must stream" and "the first row is a totals row". A totals
+     row at the top means reading every row before sending the first byte.
+     Options: put the totals row LAST; or run a separate SUM() query first
+     (cheap, one extra query) and still stream the rows.
+
+  2. "Opens in Excel with umlauts intact" and "UTF-8 without BOM". Excel on
+     Windows needs the BOM to detect UTF-8. Options: write the BOM (pandas
+     copes with encoding="utf-8-sig"); or no BOM and Finance imports through
+     Data > From Text.
+
+  My recommendation is SUM() first plus a BOM. But this is your call, not
+  mine, since both change what downstream users see.
+
+  How do you want to resolve 1 and 2?
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts

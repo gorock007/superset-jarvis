@@ -1,0 +1,40 @@
+   ┃
+   ┃  Pull the fetch logic out of TripList into a useTrips hook, keep behaviour
+   ┃  identical, run the component tests.
+   ┃
+
+   I'll read the component first, then extract the data loading into
+   src/hooks/useTrips.ts.
+
+   ⚙ read   src/screens/Trips/TripList.tsx
+   ⚙ read   src/screens/Trips/TripList.test.tsx
+   ⚙ glob   src/hooks/*.ts  (6 matches)
+
+   The component mixes three concerns: fetching, pull-to-refresh state and
+   rendering. The hook will own the first two and return
+   { trips, isLoading, error, refresh }.
+
+   ⚙ write  src/hooks/useTrips.ts
+   ⚙ edit   src/screens/Trips/TripList.tsx
+
+      -  const [trips, setTrips] = useState<Trip[]>([]);
+      -  const [isLoading, setIsLoading] = useState(true);
+      -  const [error, setError] = useState<Error | null>(null);
+      -
+      -  useEffect(() => {
+      -    let cancelled = false;
+      -    api.trips.list().then((t) => !cancelled && setTrips(t))
+      +  const { trips, isLoading, error, refresh } = useTrips();
+
+   ⚙ bash   npx jest src/screens/Trips --silent
+            running...
+
+   ■■■⬝⬝⬝⬝⬝  Generating...                                   esc interrupt
+
+   ┃
+   ┃
+   ┃
+   ┃  Build  muse-spark  OpenCode Zen
+   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                        tab agents  ctrl+p commands
+   ~/apps/trailnotes-mobile:feat/use-trips-hook            18.2K  9%  $0.00

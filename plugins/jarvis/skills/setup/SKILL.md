@@ -15,7 +15,8 @@ things at the repo root, written from `templates/` next to this file:
   handoff format.
 - `handoffs/` — `OPEN.md` (Jarvis's single pending list), `briefs/` (task
   briefs Jarvis writes), `merged/` (handoffs Jarvis has committed), plus
-  templates for briefs and handoffs.
+  templates for briefs and handoffs, and `bin/jev.sh` (optional brief lint
+  and terminal triage; inert without a `TYPESAFE_API_KEY`).
 - `.claude/agents/scout.md` and `.claude/agents/diff-reviewer.md` — read-only
   subagents pinned to `sonnet`, so Jarvis's exploration and diff review don't
   run on its own expensive model and don't dump files into its context.
@@ -35,6 +36,9 @@ you know what the placeholders mean.
   work to Codex, and small fenced work to OpenCode's free models. If either
   isn't configured, keep the table but say those rows won't work until it is,
   and that `sonnet`/`haiku` covers the OpenCode slice meanwhile.
+- Optional — Jev: `command -v jq` and whether `TYPESAFE_API_KEY` is set.
+  Neither is required and neither blocks setup; they decide only whether
+  `handoffs/bin/jev.sh` does anything (question 10). Never print the key.
 - If `CLAUDE.md` or `AGENTS.md` already exist, read them. You will **merge**,
   not overwrite: keep every project-specific rule they already hold, and add
   the Jarvis sections. Show the user the diff before writing.
@@ -71,6 +75,14 @@ so the user can just say "yes":
    whether those numbers suit; edit them in place in the written `CLAUDE.md`
    if not. There's no `superset usage` command, so Jarvis reads its own
    `/usage`, worker-terminal limit messages, or whatever the user tells it.
+10. **Jev (optional)** — `handoffs/bin/jev.sh` uses TypeSafe's Jev model to
+    lint briefs before a spawn and to boil worker-terminal polls down to one
+    line each, which keeps Jarvis's context small. It needs `jq` and a
+    `TYPESAFE_API_KEY` (docs.typesafe.ai), and it sends brief text and the
+    bottom of worker terminals — with secret-shaped strings masked — to
+    TypeSafe. Default yes when the key is already set; otherwise install it
+    anyway (it does nothing without a key) unless the user says no, in which
+    case skip `handoffs/bin/` and drop the Jev paragraph from `CLAUDE.md`.
 
 Skip any question the repo answers unambiguously; say what you assumed.
 
@@ -91,7 +103,8 @@ Replace the placeholders in the templates:
 Then:
 
 - Copy `templates/handoffs/` to `<repo>/handoffs/` (keep `OPEN.md`,
-  `TEMPLATE.md`, `briefs/TEMPLATE.md`, the `.gitkeep`s).
+  `TEMPLATE.md`, `briefs/TEMPLATE.md`, the `.gitkeep`s, and `bin/jev.sh` —
+  then `chmod +x <repo>/handoffs/bin/jev.sh`).
 - If the app lives in a subfolder that has its own `CLAUDE.md`, add one line
   at the top of it: "This project runs the Jarvis workflow — see the root
   `CLAUDE.md` and `AGENTS.md`."
@@ -101,7 +114,8 @@ Then:
   every Jarvis session, so it pays for itself only if every line is true on
   every task; detail belongs in the `jarvis:run` skill, which loads on
   demand. If the user's answers made it longer, trim rather than append.
-- Add nothing to `.gitignore`: `handoffs/` is tracked on purpose; it is the
+- Add one line to `.gitignore` and nothing else: `handoffs/.jev/` (Jev's
+  local log). The rest of `handoffs/` is tracked on purpose; it is the
   project's memory and Jarvis commits merged handoffs with the feature.
 
 ## 4. Verify and hand over
@@ -111,6 +125,11 @@ Then:
   `superset agents create --workspace "$SUPERSET_WORKSPACE_ID" --agent claude --model __probe__ --prompt x`
   fails with an error that lists the accepted ids (same for `--agent codex`).
   If a tier in the table isn't in that list, swap in the nearest one.
+- If Jev was installed: `handoffs/bin/jev.sh --dry-run brief
+  handoffs/briefs/TEMPLATE.md` should print a JSON request (that proves `jq`
+  and the script work without sending anything). If `TYPESAFE_API_KEY` isn't
+  set, tell the user to export it in the shell profile Superset terminals
+  load; until then every `jev.sh` call says `skipped` and nothing breaks.
 - Tell the user how to start Jarvis, in this shape (fill in their project id
   from `superset projects list`):
 
