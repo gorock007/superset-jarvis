@@ -10,7 +10,10 @@
 #   lint    ≥90% agreement on every element (borderline labels excluded)
 #   triage  zero non-working terminals reported as a confident `working`,
 #           and ≥60% of the lines read kept out of Jarvis's context
-#   routing no gate — shadow only
+#   routing no gate — shadow only. A tier that is too low costs a failed worker
+#           and a respawn; too high only costs tokens, so they're counted apart.
+#           A brief that honestly sits between two tiers may carry
+#           "accept": ["light"] next to its "tier" in labels.json.
 set -u
 dirs=("$@")
 here=$(cd "$(dirname "$0")" && pwd)
@@ -37,6 +40,10 @@ done
 jq -rs --slurpfile L "$labels" --argjson floor "${JEV_CONFIDENCE_FLOOR:-0.6}" '
   def pct(n; d): if d == 0 then "n/a" else "\(n * 100 / d | round)% (\(n)/\(d))" end;
   def tally(f): group_by(f) | map("\(.[0] | f) ×\(length)") | join(", ");
+  def rank: {trivial: 0, light: 1, workhorse: 2, top: 3}[.] // null;
+  # 0 when the jev tier is the label or in its accept set, else tiers above (+) or below (-) the label
+  def off: .jev_tier as $t | ($t | rank) as $j | (.want.tier | rank) as $w
+    | if $j == null then -9 elif ((.want.accept // []) + [.want.tier] | index($t)) then 0 else $j - $w end;
   $L[0] as $lab
   | (map(select(.kind == "brief")) | map(. + {name: (.brief | split("/")[-1])})
      | map(select($lab.briefs[.name])) | map(. + {want: $lab.briefs[.name]})) as $b
@@ -51,6 +58,9 @@ jq -rs --slurpfile L "$labels" --argjson floor "${JEV_CONFIDENCE_FLOOR:-0.6}" '
     "",
     "== Shadow routing (no gate)",
     "  tier exact: \(pct($b | map(select(.jev_tier == .want.tier)) | length; $b | length))",
+    "  tier acceptable: \(pct($b | map(select(off == 0)) | length; $b | length))  (label or its accept set)",
+    "  too low — the costly error: \($b | map(select(off < 0)) | length)" + ($b | map(select(off < -1) | .name) | if length > 0 then "   two+ tiers low: " + join(" · ") else "" end),
+    "  too high — wasteful only: \($b | map(select(off > 0)) | length)",
     "  label → jev: \($b | map(select(.jev_tier != .want.tier)) | tally("\(.want.tier) → \(.jev_tier)"))",
     (("media_asset", "computer_use", "security", "touches_secrets") as $k
      | ({media_asset: "media"}[$k] // $k) as $lk

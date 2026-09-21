@@ -86,8 +86,8 @@ The tier turns on one question:
 - **Yes, and substantial** — the hard thinking is in the brief, not the task
   → **workhorse**. **Yes, and small** → light. **Mechanical** → trivial.
 
-Size doesn't decide this; undecidedness does. And the answer isn't fixed: a
-sharper brief moves a task down a tier (see "Briefs are the cost lever").
+Size doesn't decide this; undecidedness does — and a sharper brief moves a
+task down a tier (see "Briefs are the cost lever").
 
 | Tier | Claude Code | Codex | OpenCode (free) |
 | --- | --- | --- | --- |
@@ -96,11 +96,10 @@ sharper brief moves a task down a tier (see "Briefs are the cost lever").
 | Light | `sonnet` · `medium` | `gpt-5.6-terra` · `medium` | if tightly fenced |
 | Trivial | `haiku` · `low` | `gpt-5.6-luna` · `low` | **first choice** |
 
-`opus`/`high` is not a downgrade — it's the right default for most briefs.
-Reserve `fable` for calls that are expensive to get wrong.
-
-**Always Codex, regardless:** any image or media asset, and any app testing
-needing computer use. Security work prefers `gpt-5.6-sol`.
+`opus`/`high` is the right default for most briefs, not a downgrade; reserve
+`fable` for calls that are expensive to get wrong. **Always Codex:** any image
+or media asset, and app testing needing computer use. Security work prefers
+`gpt-5.6-sol`.
 
 ### OpenCode — the free tier
 
@@ -109,21 +108,18 @@ every small task it absorbs is quota kept for work that needs it. Check it
 **before** `sonnet`/`haiku` in every band — free work is free in all of them.
 
 Give it: mechanical edits, one well-specified change in one or two files with
-a pattern to copy, obvious tests, docs, config tweaks. Not: anything top or
-workhorse tier, security, migrations, the classification/LLM pipeline, work
-spanning many files — and **nothing touching real credentials or real user
-data**, since free models are served by third parties. Fixtures only.
-
-Free models are weak, so the scope fence does the work: name the exact files
-and the exact pattern, or don't send it here. Omit `--effort` (OpenCode
-rejects it) and usually `--model` (the free list rotates; let the user's own
-picker decide, or probe with `--model __probe__` and read the accepted ids
-off the error).
+a pattern to copy, obvious tests, docs, config tweaks. Not: top or workhorse
+tier, security, migrations, work spanning many files — and **nothing touching
+real credentials or real user data** (free models are served by third
+parties; fixtures only). Free models are weak, so the fence does the work:
+name the exact files and pattern, or don't send it here. Omit `--effort`
+(OpenCode rejects it) and usually `--model` (the free list rotates; probe
+with `--model __probe__` and read the accepted ids off the error).
 
 One correction over `terminals send` if it stalls, loops, or breaks scope;
 if the second attempt is still wrong, close it and respawn on `sonnet`.
-Babysitting costs more than the tokens saved. Note recurring failures in
-`OPEN.md` so later sessions don't retry the same thing.
+Babysitting costs more than the tokens saved; note recurring failures in
+`OPEN.md`.
 
 ### Briefs are the cost lever
 
@@ -148,11 +144,10 @@ machine. Track the band, record it in `handoffs/OPEN.md`
 | **Amber** — 50%+ | **`fable` off for workers**: those briefs spawn on `opus`/`high` and say so in the header. Running `fable` workers get switched (below). Light/trivial unchanged. |
 | **Red** — 75%+, a usage-limit message in any worker terminal, or a failed Claude spawn | New top and workhorse briefs go to Codex. Claude kept for Jarvis and in-flight workers. Tell the user. |
 
-Read it from `/usage` in your own session (local sessions on this machine
-only), from limit messages in `terminals read`, or from what the user tells
-you; there is no `superset usage` command. Jarvis never downgrades itself —
-it routes *work* away so the budget goes to coordination. Bands only tighten
-within a session unless the user says the window reset.
+Read it from `/usage` in your own session, from limit messages in worker
+terminals, or from the user; there is no `superset usage` command. Jarvis
+never downgrades itself — it routes *work* away. Bands only tighten within a
+session unless the user says the window reset.
 
 **Switching a running `fable` worker:** never kill it mid-edit — its work is
 uncommitted in the shared checkout. `terminals send` *"Usage band changed:
@@ -184,17 +179,15 @@ Jarvis is the longest-running, most expensive session here. Details in
 - **`/clear` between unrelated work** (free) and `/compact` at merge
   boundaries, steered: `/compact Focus on open decisions, current briefs,
   file paths`. `OPEN.md` is what makes this safe — write state down first.
-- **Jev** (optional): `handoffs/bin/jev.sh brief <file>` lints a brief before
-  a spawn, `triage <ids>` polls at one line per worker, `outcome <file>
-  <result>` at merge. It advises, never decides; `jev: skipped` = carry on.
+- **Jev** (optional): `handoffs/bin/jev.sh brief <file>` before a spawn,
+  `triage <ids>` to poll, `outcome <file> <result>` at merge. Advice only.
 - Say it in one line when a choice was made for cost ("briefing this tightly
   so it runs on opencode") — never degrade work silently.
 
 ## Checks
 
 Workers run these before handing off and report the results: {{CHECKS}}
-If the repo's tooling changes, update this line (and the same line in
-`AGENTS.md`) rather than letting workers guess.
+If the tooling changes, update this line and the same one in `AGENTS.md`.
 
 ## Worker rules and the handoff format
 

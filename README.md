@@ -383,6 +383,7 @@ To turn it on, set `TYPESAFE_API_KEY` in the shell profile your Superset
 terminals load. Details are in
 [`jev.md`](plugins/jarvis/skills/run/references/jev.md). The labelled fixtures
 and the pass/fail gates used to test the questions are in [`eval/`](eval/).
+`eval/selftest.sh` checks the fail-open paths and the masking with no key and no network.
 
 ## Customizing
 
@@ -476,7 +477,7 @@ plugins/jarvis/
         handoffs.md                  brief and handoff formats, review steps
         efficiency.md                where tokens go and how to spend fewer
         jev.md                       the optional Jev helper and the shadow-routing rule
-eval/                                labelled briefs and terminal tails, and run.sh to test jev.sh
+eval/                                labelled briefs and terminal tails; run.sh (live) and selftest.sh (offline) test jev.sh
 ```
 
 ## Contributing

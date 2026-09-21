@@ -65,14 +65,23 @@ said lower / same / higher than you did, and how those briefs ended.
 - Otherwise routing stays as it is and the routing questions should be
   removed from `jev.sh` to save the tokens.
 
+Advisory is lopsided on purpose, because the two mistakes don't cost the same:
+a tier too low is a failed worker and a respawn, a tier too high is only
+tokens. A **higher** suggestion is always shown. A **lower** one is shown only
+when Jev's confidence is 0.8 or more, and a close call is shown as the top two
+tiers with their probabilities, not as a pick. Jev unavailable means no
+suggestion — never a default tier.
+
 Either way it's the user's decision; show them the report.
 
 ## What leaves the machine
 
 The brief (minus its header) and the bottom 60 lines of each triaged terminal
 are sent to TypeSafe's API. `jev.sh` masks secret-shaped strings first
-(`sk-…`, `ghp_…`, JWTs, `Bearer …`, `*_KEY=…`, `*_TOKEN=…`), but masking is a
-net, not a guarantee. On a repo where terminal contents must not go to a third
+(API keys and tokens by shape, JWTs, private-key blocks, `Bearer …`, cookies,
+`scheme://user:pass@host` URLs, `password: …`-style assignments, and the literal
+value of any environment variable with a credential-like name), but masking is
+a net, not a guarantee: a customer name or a private document has no shape. On a repo where terminal contents must not go to a third
 party, don't set `TYPESAFE_API_KEY` there. The log lives in `handoffs/.jev/`
 and is git-ignored.
 
@@ -83,4 +92,4 @@ irrelevant state grows. That is why the script asks several plain questions
 and combines them in code rather than asking "which model should run this?",
 and why it sends 60 lines rather than the whole scrollback. If you change a
 question in `jev.sh`, re-run `eval/run.sh` in the plugin repo before trusting
-it.
+it; `eval/selftest.sh` checks the fail-open paths and the masking for free.
