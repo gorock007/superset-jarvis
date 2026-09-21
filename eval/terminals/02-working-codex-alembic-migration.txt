@@ -1,0 +1,43 @@
+• Explored
+  └ Read 0030_add_locale.py, user.py
+    Search full_name in accounts
+
+• I have the shape of the previous backfill. Creating the migration next, then
+  the script with the same batching loop.
+
+• Added accounts/migrations/0031_split_full_name.py (+24 -0)
+     1 +from django.db import migrations, models
+     2 +
+     3 +
+     4 +class Migration(migrations.Migration):
+     5 +    dependencies = [("accounts", "0030_add_locale")]
+     6 +
+     7 +    operations = [
+     8 +        migrations.AddField(
+     9 +            model_name="user",
+    10 +            name="first_name",
+    11 +            field=models.CharField(max_length=150, blank=True, default=""),
+    12 +        ),
+    13 +        migrations.AddField(
+    14 +            model_name="user",
+    15 +            name="last_name",
+    16 +            field=models.CharField(max_length=150, blank=True, default=""),
+    17 +        ),
+    18 +    ]
+
+• Edited accounts/models/user.py (+2 -0)
+    41      full_name = models.CharField(max_length=300)
+    42 +    first_name = models.CharField(max_length=150, blank=True, default="")
+    43 +    last_name = models.CharField(max_length=150, blank=True, default="")
+
+• Ran python manage.py makemigrations --check --dry-run
+  └ No changes detected
+
+• Running python manage.py migrate accounts
+
+• Working (38s • esc to interrupt)
+
+
+› Write tests for @filename
+
+  gpt-5.6-sol high · 71% context left · ~/work/accounts-service

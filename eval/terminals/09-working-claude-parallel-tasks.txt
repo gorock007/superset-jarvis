@@ -1,0 +1,45 @@
+⏺ There are 52 component files. I'll split them into three batches and run
+  them in parallel, then sort en.json once at the end.
+
+⏺ Task(i18n batch 1: src/components A–F)
+  ⎿  Read(src/components/Avatar.tsx)
+     Update(src/components/Badge.tsx)
+     +14 more tool uses
+
+⏺ Task(i18n batch 2: src/components G–P)
+  ⎿  Update(src/components/ListEmpty.tsx)
+     Update(src/i18n/en.json)
+     +11 more tool uses
+
+⏺ Task(i18n batch 3: src/components Q–Z)
+  ⎿  Read(src/components/TripCard.tsx)
+     Search(pattern: "accessibilityLabel=\"", path: "src/components")
+     +9 more tool uses
+
+⏺ Update(src/components/EmptyState.tsx)
+  ⎿  Updated src/components/EmptyState.tsx with 5 additions and 3 removals
+        8    export function EmptyState({ onCreate }: Props) {
+        9 +    const { t } = useTranslation();
+       10      return (
+       11        <View style={styles.wrap}>
+       12 -        <Text style={styles.title}>No trips yet</Text>
+       13 -        <Text style={styles.body}>Plan your first hike.</Text>
+       14 -        <Button label="Create trip" onPress={onCreate} />
+       12 +        <Text style={styles.title}>{t("emptyState.title")}</Text>
+       13 +        <Text style={styles.body}>{t("emptyState.body")}</Text>
+       14 +        <Button label={t("emptyState.create")} onPress={onCreate} />
+       15        </View>
+
+  Todos
+  ☒ Read the Login pilot and the i18n lint rule
+  ☐ src/components (52 files)
+  ☐ src/screens A–M (47 files)
+  ☐ src/screens N–Z (41 files)
+  ☐ Sort en.json and remove unused keys
+
+✶ Translating… (6m 19s · ↓ 21.4k tokens · esc to interrupt)
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ⏵⏵ accept edits on (shift+tab to cycle)

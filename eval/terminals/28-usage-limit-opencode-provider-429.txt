@@ -1,0 +1,32 @@
+   ⚙ edit   backlog/commands/export.py
+   ⚙ bash   pytest tests/test_export.py -q
+            ...F..                                                   [100%]
+            FAILED tests/test_export.py::test_csv_header
+            E   AssertionError: assert 'id,url,title,saved_at' == 'id,url,title,label,saved_at'
+            1 failed, 5 passed in 0.44s
+
+   The CSV header is missing the label column. I left it out of FIELDS; adding
+   it between title and saved_at.
+
+   ⚙ edit   backlog/commands/export.py
+
+      -FIELDS = ["id", "url", "title", "saved_at"]
+      +FIELDS = ["id", "url", "title", "label", "saved_at"]
+
+   ┌──────────────────────────────────────────────────────────────────────┐
+   │  ✕ Error                                                             │
+   │                                                                      │
+   │  Rate limit exceeded, try again in 47m 12s                           │
+   │                                                                      │
+   │  opencode/muse-spark: 429 Too Many Requests. You have used all free  │
+   │  requests for this model in the current window.                      │
+   │  Request id: req_01J8ZK4M2V                                          │
+   └──────────────────────────────────────────────────────────────────────┘
+
+   ┃
+   ┃
+   ┃
+   ┃  Build  muse-spark  OpenCode Zen
+   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+   enter send                           tab agents  ctrl+p commands
+   ~/code/backlog:feat/export-command                      22.3K  11%  $0.00

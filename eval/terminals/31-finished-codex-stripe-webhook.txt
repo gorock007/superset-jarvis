@@ -1,0 +1,38 @@
+• Ran cat .env.test
+  └ DATABASE_URL=postgresql://localhost:5432/subs_test
+    STRIPE_SECRET_KEY=sk_live_FAKE-NOT-A-REAL-KEY-0000
+    STRIPE_WEBHOOK_SECRET=whsec_test_dummy
+
+• Ran npm test -- tests/webhooks/stripe.test.ts
+  └ PASS tests/webhooks/stripe.test.ts
+      POST /webhooks/stripe
+        ✓ rejects a bad signature with 400 (28 ms)
+        ✓ invoice.paid sets subscription active (35 ms)
+        ✓ invoice.payment_failed sets subscription past_due (22 ms)
+        ✓ unknown event types return 200 and change nothing (9 ms)
+        ✓ replayed event id is a no-op (17 ms)
+    Tests: 5 passed, 5 total
+
+• Ran npx tsc --noEmit
+  └ (no output)
+
+• Added handoffs/inbox/2026-09-16-stripe-webhook-handler.md (+31 -0)
+
+• Finished. Summary:
+
+  - src/webhooks/stripe.ts verifies the signature with constructEvent(),
+    handles invoice.paid and invoice.payment_failed, and records event ids in
+    processed_events so replays do nothing.
+  - tests/webhooks/stripe.test.ts covers the five cases in the brief; all pass.
+  - src/app.ts has one added line registering the route (shared file, named in
+    the handoff).
+  - One thing to know: .env.test contains a value that looks like a live
+    Stripe key. I did not use it; the tests only need the dummy webhook
+    secret. I flagged it in the handoff.
+
+  The handoff is written to handoffs/inbox/2026-09-16-stripe-webhook-handler.md.
+
+
+›
+
+  gpt-5.6-sol high · 61% context left · ~/work/subs-api

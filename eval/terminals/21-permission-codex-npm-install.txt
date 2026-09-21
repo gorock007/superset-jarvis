@@ -1,0 +1,32 @@
+• Explored
+  └ Read package.json, github.ts
+    Search rawBody in src
+
+• The GitHub handler verifies signatures by hand with crypto.createHmac. For
+  Stripe the official SDK has constructEvent(), which also checks the
+  timestamp tolerance, so I'll use that rather than reimplementing it.
+
+• Updated Plan
+  └ □ Install stripe SDK
+    □ src/webhooks/stripe.ts: signature check, event switch
+    □ processed_events idempotency
+    □ tests against stripe-mock fixtures
+
+• Ran npm ls stripe
+  └ api@1.12.0 /Users/dev/work/subs-api
+    └── (empty)
+
+• Ran grep -n '"node"' package.json
+  └   "node": ">=20.11"
+
+  Would you like to run the following command?
+
+  Reason: the stripe package is not installed and installing it needs network access
+
+  $ npm install stripe@18
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `npm install` (a)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel

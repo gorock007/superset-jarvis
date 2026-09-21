@@ -1,0 +1,31 @@
+⏺ Read(app/models/invoice.py)
+  ⎿  Read 63 lines
+
+⏺ Search(pattern: "deleted_at", path: "app")
+  ⎿  Found 4 files (ctrl+o to expand)
+
+⏺ Read(app/routers/orders.py)
+  ⎿  Read 118 lines
+
+⏺ Before I write the endpoint I need one decision from you, because the brief
+  and the code disagree.
+
+  The brief says GET /v1/invoices returns "the caller's invoices". The Invoice
+  model has a deleted_at column, and the orders router (the pattern I was told
+  to follow) filters soft-deleted rows out. But app/routers/admin.py includes
+  them, and the brief does not say which behaviour invoices should have.
+
+  Which do you want?
+
+    A. Exclude soft-deleted invoices, same as orders (my default if you have
+       no preference)
+    B. Include them, with a "deleted": true flag in each item
+    C. Exclude by default, include when ?include_deleted=true is passed
+
+  I have not changed any files yet. Tell me A, B or C and I'll build the whole
+  endpoint and its tests in one go.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts

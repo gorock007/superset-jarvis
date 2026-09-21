@@ -1,0 +1,36 @@
+⏺ Bash(npm run i18n:lint)
+  ⎿  > trailnotes@3.2.0 i18n:lint
+     > node scripts/i18n-lint.js
+
+     src/screens/Trips/TripDetailScreen.tsx:41  hard-coded string "Elevation gain"
+     src/screens/Trips/TripDetailScreen.tsx:57  hard-coded string "Share trip"
+     src/screens/Weather/WeatherScreen.tsx:22   hard-coded string "Next 48 hours"
+     … +35 lines (ctrl+o to expand)
+     38 hard-coded strings
+
+⏺ 38 left, all in screens N–Z. Continuing with the Trips folder.
+
+⏺ Read(src/screens/Trips/TripDetailScreen.tsx)
+  ⎿  Read 142 lines
+
+⏺ Update(src/screens/Trips/TripDetailScreen.tsx)
+  ⎿  Updated src/screens/Trips/TripDetailScreen.tsx with 2 additions and 2 removals
+       41 -          <Stat label="Elevation gain" value={formatMeters(trip.gain)} />
+       41 +          <Stat label={t("tripDetail.elevationGain")} value={formatMeters(trip.gain)} />
+       ...
+       57 -        <Button label="Share trip" onPress={onShare} />
+       57 +        <Button label={t("tripDetail.share")} onPress={onShare} />
+
+⏺ Claude usage limit reached. Your limit will reset at 7pm (Europe/Berlin).
+
+     • /upgrade to switch to a plan with more usage
+     • /usage to see your current limits
+
+> continue
+
+⏺ Claude usage limit reached. Your limit will reset at 7pm (Europe/Berlin).
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts                                              Weekly limit reached

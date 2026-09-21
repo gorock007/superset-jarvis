@@ -1,0 +1,36 @@
+• Edited reports/weekly.py (+6 -3)
+    21  def week_bounds(day: date, tz: ZoneInfo) -> tuple[datetime, datetime]:
+    22      start = datetime.combine(day - timedelta(days=day.weekday()), time.min, tz)
+    23 -    end = start + timedelta(hours=7 * 24)
+    23 +    end_day = start.date() + timedelta(days=7)
+    24 +    end = datetime.combine(end_day, time.min, tz)
+    25      return start, end
+
+• Ran pytest tests/reports/test_weekly.py::test_week_boundary_dst -q
+  └ .                                                                [100%]
+    1 passed in 0.08s
+
+• Ran pytest tests/reports -q
+  └ ..........F...                                                   [100%]
+    FAILED tests/reports/test_monthly.py::test_month_totals_match_ledger
+    E   AssertionError: assert Decimal('10412.50') == Decimal('10412.55')
+    1 failed, 13 passed in 1.94s
+
+• The DST test passes. One other test in tests/reports fails, but it fails on
+  a clean checkout of main as well (I stashed my change and re-ran it to
+  check), so it is not caused by this fix. It looks like a rounding problem
+  in reports/monthly.py, which is outside what I was asked to change.
+
+  The brief says "pytest tests/reports -q green" is required before handoff.
+  What would you like me to do?
+
+    1. Hand off now and note the pre-existing failure
+    2. Fix the rounding bug in reports/monthly.py as well
+    3. Mark that test xfail with a link to a ticket you give me
+
+  I'll hold here until you tell me which.
+
+
+›
+
+  gpt-5.6-sol high · 83% context left · ~/work/finance-reports

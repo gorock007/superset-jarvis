@@ -1,0 +1,44 @@
+⏺ Bash(pytest tests/test_export.py -q)
+  ⎿  ........                                                         [100%]
+     8 passed in 0.52s
+
+⏺ Bash(backlog export --format csv | head -1)
+  ⎿  id,url,title,label,saved_at
+
+⏺ Bash(backlog export --format xml; echo "exit=$?")
+  ⎿  Usage: backlog export [OPTIONS]
+     Try 'backlog export --help' for help.
+
+     Error: Invalid value for '--format': 'xml' is not one of 'json', 'csv'.
+     exit=2
+
+⏺ Write(handoffs/inbox/2026-09-12-backlog-export-command.md)
+  ⎿  Wrote 27 lines to handoffs/inbox/2026-09-12-backlog-export-command.md
+     ---
+     status: done
+     brief: handoffs/briefs/backlog-export-command.md
+     ---
+     … +23 lines (ctrl+o to expand)
+
+⏺ The export command is finished and the handoff is written.
+
+  What was built
+  - backlog/commands/export.py: --format json|csv, --out PATH, --since DATE,
+    following the structure of import_.py
+  - backlog/cli.py: one line registering the command (shared file)
+  - tests/test_export.py: 8 tests, all passing
+
+  Checks from the brief
+  - pytest tests/test_export.py -q: green
+  - backlog export --format csv | head -1: prints the expected header
+  - unknown format exits 2 with a usage message
+
+  Handoff: handoffs/inbox/2026-09-12-backlog-export-command.md
+
+  Want me to also add a --label filter while I'm in here? It would be about
+  ten lines, but it is outside this brief, so I have left it alone.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts

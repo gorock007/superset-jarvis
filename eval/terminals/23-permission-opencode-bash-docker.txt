@@ -1,0 +1,34 @@
+   ⚙ read   docker-compose.yml
+   ⚙ read   gateway/plugins/ratelimit_test.go
+
+   The ratelimit tests need a Redis on localhost:6379. Nothing is listening
+   there right now:
+
+   ⚙ bash   nc -z localhost 6379; echo $?
+            1
+
+   docker-compose.yml already defines a redis service, so I'll start just
+   that one container and re-run the tests.
+
+   ┌──────────────────────────────────────────────────────────────────────┐
+   │                                                                      │
+   │  △ Permission required                                               │
+   │                                                                      │
+   │  bash                                                                │
+   │                                                                      │
+   │  $ docker compose up -d redis                                        │
+   │                                                                      │
+   │  Start the redis service defined in docker-compose.yml               │
+   │                                                                      │
+   │  This command is not covered by your allowed patterns.               │
+   │                                                                      │
+   │                                                                      │
+   │   Allow once      Allow always      Reject                           │
+   │   enter           a                 esc                              │
+   │                                                                      │
+   └──────────────────────────────────────────────────────────────────────┘
+
+   ┃  Build  union-alpha  OpenCode Zen
+   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                        tab agents  ctrl+p commands
+   ~/src/edge-gateway:feat/ratelimit-plugin                31.9K  16%  $0.00

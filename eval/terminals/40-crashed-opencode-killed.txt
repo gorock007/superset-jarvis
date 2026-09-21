@@ -1,0 +1,36 @@
+   ⚙ read   ingest/worker.py
+   ⚙ read   ingest/parquet_reader.py
+   ⚙ bash   python -m memray run -o /tmp/ingest.bin ingest/worker.py --date 2026-09-16 --limit-files 40
+            Writing profile results into /tmp/ingest.bin
+            [ingest] 2026-09-16 file 1/40 rows=1048576 rss=612MiB
+            [ingest] 2026-09-16 file 2/40 rows=1048576 rss=1190MiB
+            [ingest] 2026-09-16 file 3/40 rows=1048576 rss=1761MiB
+            [ingest] 2026-09-16 file 4/40 rows=1048576 rss=2344MiB
+
+   RSS grows by roughly 580 MiB per file and never comes back down, so the
+   tables are being kept alive after they are written. Let me look at what
+   holds a reference.
+
+   ⚙ grep   "_cache\[" ingest/  (2 matches)
+   ⚙ read   ingest/schema_cache.py
+
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x18 pc=0x104e2b6f4]
+
+goroutine 1 [running]:
+github.com/sst/opencode/internal/tui/components/chat.(*messagesComponent).renderView(0x14000532000)
+	/home/runner/work/opencode/opencode/packages/tui/internal/components/chat/messages.go:412 +0x2f4
+github.com/sst/opencode/internal/tui/components/chat.(*messagesComponent).View(0x14000532000)
+	/home/runner/work/opencode/opencode/packages/tui/internal/components/chat/messages.go:198 +0x3c
+github.com/sst/opencode/internal/tui.appModel.View({{0x14000136a80}, 0x78, 0x2a})
+	/home/runner/work/opencode/opencode/packages/tui/internal/tui/tui.go:655 +0x1a8
+github.com/charmbracelet/bubbletea/v2.(*Program).render(0x140001c4000, {0x105313b40, 0x14000410000})
+	/home/runner/go/pkg/mod/github.com/charmbracelet/bubbletea/v2@v2.0.0-beta.4/tea.go:812 +0x94
+github.com/charmbracelet/bubbletea/v2.(*Program).eventLoop(0x140001c4000, {0x105313b40, 0x14000410000})
+	/home/runner/go/pkg/mod/github.com/charmbracelet/bubbletea/v2@v2.0.0-beta.4/tea.go:760 +0x4b8
+main.main()
+	/home/runner/work/opencode/opencode/packages/tui/cmd/opencode/main.go:143 +0x8ec
+exit status 2
+dev@ingest-dev:~/work/ingest$ opencode --continue
+Error: failed to connect to opencode server: dial tcp 127.0.0.1:4096: connect: connection refused
+dev@ingest-dev:~/work/ingest$

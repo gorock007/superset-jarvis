@@ -1,0 +1,30 @@
+   ⚙ read   src/components/SaveButton.tsx
+   ⚙ read   packages/ui/src/Spinner.tsx
+   ⚙ grep   "isSaving" src/  (3 matches)
+
+   I can wire up isSaving, but there is a choice to make that changes how the
+   button looks, and the task does not say.
+
+   The Spinner component comes in two variants:
+
+     - <Spinner size="sm" />            grey, used on white backgrounds
+     - <Spinner size="sm" tone="inverse" />   white, used on filled buttons
+
+   SaveButton is a filled primary button in the editor but an outline button
+   in the settings drawer (variant="outline"). With one fixed tone the spinner
+   will be invisible in one of the two places.
+
+   Do you want me to:
+     (a) pick the tone from the button variant inside SaveButton, or
+     (b) add a spinnerTone prop and let each caller decide?
+
+   (a) is smaller and needs no changes elsewhere. (b) touches two more files,
+   which the task did not mention. Which one?
+
+   ┃
+   ┃
+   ┃
+   ┃  Build  muse-spark  OpenCode Zen
+   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+   enter send                           tab agents  ctrl+p commands
+   ~/work/editor-web:fix/save-spinner                       6.1K  3%  $0.00

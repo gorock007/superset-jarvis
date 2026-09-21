@@ -1,0 +1,45 @@
+   ⚙ read   gateway/plugins/auth.go
+   ⚙ read   gateway/plugins/registry.go
+
+   The plugin interface is Handle(ctx, req) (resp, error). I'll add a
+   ratelimit plugin with a sliding window kept in Redis.
+
+   ⚙ write  gateway/plugins/ratelimit.go
+
+      +// ErrRateLimited is returned when a client exceeds its window.
+      +var ErrRateLimited = errors.New("rate limit exceeded")
+      +
+      +func (p *RateLimit) Handle(ctx context.Context, req *Request) (*Response, error) {
+      +	key := "rl:" + req.ClientID
+      +	n, err := p.rdb.Incr(ctx, key).Result()
+      +	if err != nil {
+      +		return nil, fmt.Errorf("ratelimit: incr: %w", err)
+      +	}
+      +	if n == 1 {
+      +		p.rdb.Expire(ctx, key, p.window)
+      +	}
+      +	if n > p.max {
+      +		ttl, _ := p.rdb.TTL(ctx, key).Result()
+      +		return &Response{
+      +			Status: 429,
+      +			Body:   fmt.Sprintf("Rate limit exceeded, try again in %ds", int(ttl.Seconds())),
+      +		}, ErrRateLimited
+      +	}
+      +	return p.next.Handle(ctx, req)
+      +}
+
+   ⚙ edit   gateway/plugins/registry.go
+   ⚙ bash   go build ./...
+            ok
+   ⚙ bash   go test ./gateway/plugins/ -run RateLimit -count=1
+            running...
+
+   ⬝⬝■■■⬝⬝⬝  Working...                                      esc interrupt
+
+   ┃
+   ┃
+   ┃
+   ┃  Build  union-alpha  OpenCode Zen
+   ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+                                        tab agents  ctrl+p commands
+   ~/src/edge-gateway:feat/ratelimit-plugin                24.7K  12%  $0.00

@@ -110,6 +110,11 @@ five full-context requests for information that hasn't changed.
   you've nothing else to do.
 - Batch reads into one bash call rather than five tool calls:
   `for t in <id1> <id2>; do superset terminals read --workspace "$SUPERSET_WORKSPACE_ID" --terminal $t --max-lines 25; done`
+- Better, where the repo has it: `handoffs/bin/jev.sh triage <id1> <id2>`
+  reads the screens *outside* your context and hands back one line per
+  worker, plus the last 15 lines only for a worker that needs you. Five quiet
+  workers cost five lines instead of 125. It's optional and fail-open
+  (`references/jev.md`); when it says `skipped`, use the loop above.
 - Keep `--max-lines` small. You want the last few lines and whether a handoff
   appeared — `ls handoffs/*.md` answers the second question more cheaply than
   reading a screen.

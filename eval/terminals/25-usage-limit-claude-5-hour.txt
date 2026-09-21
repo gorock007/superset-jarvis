@@ -1,0 +1,41 @@
+⏺ Update(src/screens/Settings/NotificationsScreen.tsx)
+  ⎿  Updated src/screens/Settings/NotificationsScreen.tsx with 6 additions and 4 removals
+       18    export function NotificationsScreen() {
+       19 +    const { t } = useTranslation();
+       20      const prefs = useNotificationPrefs();
+       21      return (
+       22        <Screen>
+       23 -        <Header title="Notifications" />
+       24 -        <ToggleRow label="Trip reminders" value={prefs.reminders} />
+       25 -        <ToggleRow label="Weather alerts" value={prefs.weather} />
+       26 -        <ToggleRow label="Friend activity" value={prefs.friends} />
+       23 +        <Header title={t("notifications.title")} />
+       24 +        <ToggleRow label={t("notifications.reminders")} value={prefs.reminders} />
+       25 +        <ToggleRow label={t("notifications.weather")} value={prefs.weather} />
+       26 +        <ToggleRow label={t("notifications.friends")} value={prefs.friends} />
+
+⏺ Update(src/i18n/en.json)
+  ⎿  Updated src/i18n/en.json with 6 additions
+       212 +    "notifications": {
+       213 +      "title": "Notifications",
+       214 +      "reminders": "Trip reminders",
+       215 +      "weather": "Weather alerts",
+       216 +      "friends": "Friend activity"
+       217 +    },
+
+⏺ Read(src/screens/Settings/PrivacyScreen.tsx)
+  ⎿  Read 88 lines
+
+  ⎿  5-hour limit reached ∙ resets 3pm
+     /upgrade to increase your usage limit.
+
+  Todos
+  ☒ src/components (52 files)
+  ☒ src/screens A–M (47 files)
+  ☐ src/screens N–Z (41 files)
+  ☐ Sort en.json and remove unused keys
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ⏵⏵ accept edits on (shift+tab to cycle)

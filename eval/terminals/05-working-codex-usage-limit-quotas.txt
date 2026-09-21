@@ -1,0 +1,42 @@
+• Explored
+  └ Read plans.ts, usage.service.ts
+    Search UsageLimitError in src
+
+• Plan
+  └ ✔ Add monthly usage limit per plan to plans.ts
+    ✔ Throw UsageLimitError from UsageService.record()
+    □ Map the error to a 402 response with an upgrade hint
+    □ Tests for free, pro and the reset date
+
+• Edited src/billing/usage.service.ts (+14 -2)
+    52      const used = await this.repo.countThisPeriod(accountId);
+    53 -    await this.repo.insert(accountId, event);
+    53 +    const limit = PLANS[account.plan].monthlyUsageLimit;
+    54 +    if (used >= limit) {
+    55 +      // Same wording the dashboard banner uses.
+    56 +      throw new UsageLimitError(
+    57 +        `You've hit your usage limit (${limit} runs). ` +
+    58 +          `Upgrade to Pro or try again after ${formatDate(account.periodEnd)}.`,
+    59 +      );
+    60 +    }
+    61 +    await this.repo.insert(accountId, event);
+
+• Edited src/http/error-map.ts (+6 -0)
+    18    [NotFoundError, 404],
+    19 +  // usage limit reached -> 402 so clients can show the upgrade prompt
+    20 +  [UsageLimitError, 402],
+
+• Ran npx tsc --noEmit
+  └ (no output)
+
+• Now the tests. I'll seed an account at limit - 1, record twice, and expect
+  the second call to reject with the usage limit message.
+
+• Running npx vitest run src/billing/usage.service.test.ts
+
+• Working (1m 07s • esc to interrupt)
+
+
+› Improve documentation in @filename
+
+  gpt-5.6-sol high · 58% context left · ~/code/runboard-api

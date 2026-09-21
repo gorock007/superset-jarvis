@@ -1,0 +1,40 @@
+⏺ Update(api/pagination.py)
+  ⎿  Updated api/pagination.py with 1 addition and 1 removal
+       6 -  DEFAULT_PAGE_SIZE = 20
+       6 +  DEFAULT_PAGE_SIZE = 50
+
+⏺ Update(tests/test_pagination.py)
+  ⎿  Updated tests/test_pagination.py with 2 additions and 2 removals
+       14 -      assert len(page.items) == 20
+       14 +      assert len(page.items) == 50
+       ...
+       31 -      assert resp.json()["page_size"] == 20
+       31 +      assert resp.json()["page_size"] == 50
+
+⏺ Update(docs/api/pagination.md)
+  ⎿  Updated docs/api/pagination.md with 1 addition and 1 removal
+       9 -  If `limit` is omitted, 20 items are returned.
+       9 +  If `limit` is omitted, 50 items are returned.
+
+⏺ Bash(pytest tests/test_pagination.py -q && grep -n "DEFAULT_PAGE_SIZE = 50" api/pagination.py)
+  ⎿  .........                                                        [100%]
+     9 passed in 0.37s
+     6:DEFAULT_PAGE_SIZE = 50
+
+⏺ Write(handoffs/inbox/2026-09-16-default-page-size-50.md)
+  ⎿  Wrote 19 lines to handoffs/inbox/2026-09-16-default-page-size-50.md
+     ---
+     status: done
+     brief: handoffs/briefs/default-page-size-50.md
+     ---
+     … +15 lines (ctrl+o to expand)
+
+⏺ Done. The default page size is 50 in the constant, the two test
+  expectations and the docs line. Both checks from the brief pass. The handoff
+  is at handoffs/inbox/2026-09-16-default-page-size-50.md. Nothing outside the
+  three allowed files was touched.
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ >                                                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  ? for shortcuts
