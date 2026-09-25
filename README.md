@@ -74,7 +74,7 @@ It's probably not for you if:
 | --- | --- |
 | 🧠 **One lead agent** | You talk only to Jarvis. It plans, decides, and briefs, and it does no editing in its own terminal. |
 | 🛠️ **Parallel workers** | Each task runs in its own Superset terminal in the same workspace. Jarvis starts independent tasks at the same time. |
-| 🎯 **Model routing** | Each task goes to the cheapest agent and model that can do it well: Claude Code (`fable` / `opus` / `sonnet` / `haiku`), Codex, or OpenCode's free models. |
+| 🎯 **Model routing** | Each task goes to the cheapest agent and model that can do it well: Claude Code (`fable` / `claude-opus-5-5` / `sonnet` / `haiku`), Codex, or OpenCode's free models. |
 | 📉 **Usage bands** | Jarvis tracks how much of your Claude usage is gone. Past 50% it stops giving workers `fable`. Past 75% new heavy work goes to Codex. |
 | ❓ **Grouped questions** | Workers never wait for you. They write their questions into a handoff file, and Jarvis collects them into one numbered message for you. |
 | ✅ **Review and commit** | Jarvis checks each handoff against `git status`, reads the diff, and runs your checks. Then it commits only the listed files, one commit per task. |
@@ -279,7 +279,7 @@ what was decided and why.
 ## Model routing
 
 The tier depends on one question: **can the brief say what "done" looks like
-and how to verify it?** If yes, `opus`/`high` can handle it, and that covers
+and how to verify it?** If yes, Claude Opus 5.5 at `high` can handle it, and that covers
 most work. If no (the approach isn't decided, the spec is unclear, the cause
 is unknown, or a wrong call would be expensive), it goes to `fable`. How
 *undecided* a task is matters more than how big it is.
@@ -287,12 +287,20 @@ is unknown, or a wrong call would be expensive), it goes to `fable`. How
 | Tier | Claude Code | Codex | OpenCode (free) |
 | --- | --- | --- | --- |
 | Top: worker must decide the approach | `fable` · high | `gpt-6-astra` · high | never |
-| Workhorse: substantial but specified | `opus` · high | `gpt-5.6-sol` · high | never |
+| Workhorse: substantial but specified | `claude-opus-5-5` · high | `gpt-5.6-sol` · high | never |
 | Light: scoped tweaks, docs, audits | `sonnet` · medium | `gpt-5.6-terra` · medium | if tightly scoped |
 | Trivial: renames, formatting | `haiku` · low | `gpt-5.6-luna` · low | **first choice** |
 
 These always go to Codex: **any image or media asset** and **app testing that
 needs computer use**. Security work goes to `gpt-5.6-sol` when possible.
+
+**Workers default to Claude Opus 5.5.** It is pinned as `claude-opus-5-5`
+rather than left to the `opus` alias, so a worker never silently lands on
+Opus 5. Opus 5.5 costs less per token than Opus 5 ($4 / $20 per million) and
+finishes agentic coding work with fewer tokens, so it is the right home for
+well-specified briefs. Its thinking is always on, so Jarvis always passes
+`--effort`. Jarvis itself stays on Claude Fable 5.1, the tier above Opus,
+because the coordinating session is where the undecided calls get made.
 
 **OpenCode is the free tier.** Jarvis considers it before `sonnet` or `haiku`,
 because every small task it handles saves your Claude and Codex quota. Jarvis
@@ -316,7 +324,7 @@ tracks a **band** and records it in `OPEN.md`:
 | Band | Trigger | What changes |
 | --- | --- | --- |
 | 🟢 Green | under 50% | The routing table as written |
-| 🟡 Amber | 50%+ | Workers don't get `fable`. Those briefs start on `opus`/`high` instead. Running `fable` workers finish their current phase, hand off `status: partial`, and restart on `opus`. Jarvis never stops them mid-edit. |
+| 🟡 Amber | 50%+ | Workers don't get `fable`. Those briefs start on Opus 5.5 (`claude-opus-5-5`) at `high` instead. Running `fable` workers finish their current phase, hand off `status: partial`, and restart on Opus 5.5. Jarvis never stops them mid-edit. |
 | 🔴 Red | 75%+, a usage-limit message, or a failed start | New top- and workhorse-tier briefs go to Codex. Claude is kept for Jarvis and workers already running. |
 
 Jarvis reads its own `/usage` at the start of each session and after each

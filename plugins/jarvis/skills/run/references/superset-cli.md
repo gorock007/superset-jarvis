@@ -20,7 +20,7 @@ superset agents create --workspace "$SUPERSET_WORKSPACE_ID" \
 - `--agent`: preset id (`claude`, `codex`), a HostAgentConfig UUID, or `superset`.
 - `--model`: explicit override for this launch. Claude accepts family aliases
   that track the newest release — `fable`, `opus`, `sonnet`, `haiku` — or a
-  pinned id. Codex accepts its model ids (`gpt-6-astra`, `gpt-5.6-sol`,
+  pinned id (the workhorse tier is pinned: `claude-opus-5-5`). Codex accepts its model ids (`gpt-6-astra`, `gpt-5.6-sol`,
   `gpt-5.6-terra`, `gpt-5.6-luna`). The host rejects an unknown id before
   launching and its error lists every id that agent accepts.
 - `--effort`: Claude `low|medium|high|xhigh|max`; Codex `low|medium|high|xhigh`.

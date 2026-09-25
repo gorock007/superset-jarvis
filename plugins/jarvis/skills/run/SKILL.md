@@ -82,9 +82,10 @@ Pick agent, model and effort from `references/model-routing.md` and write
 them into the brief header. The tier turns on one question — *can this brief
 state what done looks like and how to verify it?* If yes, `opus`/`high` (or
 `gpt-5.6-sol`) carries most work comfortably; save `fable` for tasks where
-the worker must decide the shape. Then apply the band: in amber, a
-`fable`-tier brief spawns on `opus` and the header says why
-(`model: opus (amber band; fable-tier task)`).
+the worker must decide the shape. `opus` is Claude Opus 5.5 — write it as
+`claude-opus-5-5` in the header and in `--model`. Then apply the band: in
+amber, a `fable`-tier brief spawns on `opus` and the header says why
+(`model: claude-opus-5-5 (amber band; fable-tier task)`).
 
 If the repo has `handoffs/bin/jev.sh`, run `handoffs/bin/jev.sh brief
 handoffs/briefs/<file>.md` once the header is filled in. It checks the five

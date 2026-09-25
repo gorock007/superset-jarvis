@@ -36,6 +36,10 @@ you know what the placeholders mean.
   work to Codex, and small fenced work to OpenCode's free models. If either
   isn't configured, keep the table but say those rows won't work until it is,
   and that `sonnet`/`haiku` covers the OpenCode slice meanwhile.
+- The workhorse tier is pinned to `claude-opus-5-5` (Claude Opus 5.5). The
+  host validates `--model` before launch, so if a worker spawn ever rejects
+  that id, switch the table to the `opus` alias (it tracks the newest Opus)
+  and tell the user. Jarvis itself stays on `fable`.
 - Optional — Jev: `command -v jq` and whether `TYPESAFE_API_KEY` is set.
   Neither is required and neither blocks setup; they decide only whether
   `handoffs/bin/jev.sh` does anything (question 10). Never print the key.

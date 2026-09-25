@@ -37,7 +37,7 @@ how saves get classified is top-tier work.
 | Tier | `--model` | `--effort` | Send it |
 | --- | --- | --- | --- |
 | Top | `fable` | `high` (`xhigh` when the task is both undecided and large) | New subsystems designed from scratch · data model / schema design · the classification & LLM pipeline, prompt and eval design · cross-cutting refactors touching many files at once · debugging where the cause is unknown · security-sensitive logic · briefs whose spec is ambiguous, contested, or came back with questions · anything Jarvis can't cheaply verify afterwards |
-| Workhorse | `opus` | `high` | Well-specified feature work, however big: a new command or endpoint following an existing pattern · integrating a documented API · test suites · a migration with a known shape · a bug with a known repro · performance work with a target number · a second pass on something `fable` already designed |
+| Workhorse | `claude-opus-5-5` (alias `opus`) | `high` | Well-specified feature work, however big: a new command or endpoint following an existing pattern · integrating a documented API · test suites · a migration with a known shape · a bug with a known repro · performance work with a target number · a second pass on something `fable` already designed |
 | Light | `sonnet` | `medium` | Scoped tweaks, docs, reading and auditing, summarising diffs. Also Jarvis's own read-only subagents. |
 | Trivial | `haiku` | `low` | Renames, formatting, moving files, one-line fixes — but these are OpenCode's default slice; use `haiku` when OpenCode isn't configured or the task touches anything sensitive. |
 
@@ -45,6 +45,26 @@ how saves get classified is top-tier work.
 for the majority of briefs, and the tier Jarvis should reach for unless the
 task genuinely fails the test above. Reserve `fable` for the calls that are
 expensive to get wrong.
+
+**The workhorse model is Claude Opus 5.5, pinned.** Spawn it as
+`--model claude-opus-5-5`, not the `opus` alias. The alias resolves to the
+same model on Claude Code 2.1.282 and later, but a pinned id is one thing
+fewer to wonder about when a handoff looks off. Everywhere else in these docs
+`opus` is shorthand for that id. What matters about Opus 5.5 for routing:
+
+- It is cheaper than Opus 5 per token ($4 / $20 per MTok, cache reads $0.20)
+  and cheaper again per finished task — at `medium` it matched or beat
+  Opus 5 at `high` on agentic coding with roughly half the tokens, and it
+  catches more in code review with fewer false alarms.
+- Thinking is always on and can't be disabled, so `--effort` is the only
+  cost lever. Pass it explicitly: the API default is `medium`, one level
+  below Opus 5's. `high` stays the tier default; use `medium` for a workhorse
+  brief that is small and tightly fenced.
+- It reports its work in plainer language, which makes handoffs easier to
+  review, and reads screenshots and charts accurately without extra tooling.
+
+Jarvis itself stays on `fable`: Claude Fable 5.1 is the tier above Opus, and
+the coordinating session is where the undecided calls get made.
 
 **Design/build split.** When a task is top-tier only because nobody has
 decided the shape yet, consider splitting it: a short `fable` brief that
@@ -172,7 +192,7 @@ checkout and would be lost. Instead:
 
 ```bash
 superset agents create --workspace "$SUPERSET_WORKSPACE_ID" \
-  --agent claude --model opus --effort high \
+  --agent claude --model claude-opus-5-5 --effort high \
   --prompt "You are a Jarvis worker. Read AGENTS.md, then continue the task in handoffs/briefs/<file>.md. handoffs/merged/<partial>.md records what is already done — start from there. Put every question in one first handoff; otherwise build every phase through to done." \
   --json
 ```
@@ -217,7 +237,9 @@ test result, security work first. Don't kill running workers to make room.
 The host validates `--model` before launching and its error names every id
 that agent accepts. Pick the same tier from that list (newest flagship →
 Top; the balanced one → Workhorse; the cheap one → Light/Trivial) and, if it
-recurs, update the table in `CLAUDE.md` so future sessions don't hit it.
+recurs, update the table in `CLAUDE.md` so future sessions don't hit it. If
+the pinned `claude-opus-5-5` is what gets rejected, the `opus` alias tracks
+the newest Opus release and is the fallback.
 
 ## 7. The shadow classifier
 

@@ -10,7 +10,7 @@ the same commit as the feature.
 
 Header: `worker`, `model`, `effort`, `started`, `terminal` (filled after
 spawn). When the usage band changed the model choice, say so in the header
-(`model: opus (amber band; fable-tier task)`) — a later re-spawn then knows
+(`model: claude-opus-5-5 (amber band; fable-tier task)`) — a later re-spawn then knows
 whether to go back up to `fable`. Body: **Goal** (verifiable), **Context** (decisions already made,
 files to read, prior handoffs), **Scope** (may / must-not / shared files),
 **Phases**, **Checks**, and the ask-once instruction.

@@ -92,14 +92,16 @@ task down a tier (see "Briefs are the cost lever").
 | Tier | Claude Code | Codex | OpenCode (free) |
 | --- | --- | --- | --- |
 | Top | `fable` · `high` (`xhigh` if undecided *and* large) | `gpt-6-astra` · `high` | never |
-| Workhorse | `opus` · `high` | `gpt-5.6-sol` · `high` | never |
+| Workhorse | `claude-opus-5-5` (`opus`) · `high` | `gpt-5.6-sol` · `high` | never |
 | Light | `sonnet` · `medium` | `gpt-5.6-terra` · `medium` | if tightly fenced |
 | Trivial | `haiku` · `low` | `gpt-5.6-luna` · `low` | **first choice** |
 
 `opus`/`high` is the right default for most briefs, not a downgrade; reserve
-`fable` for calls that are expensive to get wrong. **Always Codex:** any image
-or media asset, and app testing needing computer use. Security work prefers
-`gpt-5.6-sol`.
+`fable` for calls that are expensive to get wrong. `opus` means Claude Opus
+5.5: spawn it as `--model claude-opus-5-5` (the alias tracks it too) and
+always pass `--effort`, since its thinking can't be turned off. **Always
+Codex:** any image or media asset, and app testing needing computer use.
+Security work prefers `gpt-5.6-sol`.
 
 ### OpenCode — the free tier
 

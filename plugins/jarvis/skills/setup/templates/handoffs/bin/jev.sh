@@ -165,7 +165,7 @@ cmd_brief() {
     --arg worker "$(printf '%s\n' "$header" | sed -n 's/^worker:[[:space:]]*//p' | head -n 1)" \
     --arg jmodel "$(printf '%s\n' "$header" | sed -n 's/^model:[[:space:]]*//p' | head -n 1)" \
     --arg effort "$(printf '%s\n' "$header" | sed -n 's/^effort:[[:space:]]*//p' | head -n 1)" '
-    def tier_of: {"fable":"top","gpt-6-astra":"top","opus":"workhorse","gpt-5.6-sol":"workhorse",
+    def tier_of: {"fable":"top","gpt-6-astra":"top","opus":"workhorse","claude-opus-5-5":"workhorse","gpt-5.6-sol":"workhorse",
       "sonnet":"light","gpt-5.6-terra":"light","haiku":"trivial","gpt-5.6-luna":"trivial"}[.] // null;
     def p(k): .answers[k].noul // 0;
     . as $r

@@ -163,8 +163,9 @@ Effort governs the thinking budget, which is billed as output. `high` on a
 well-specified task is often no better than `medium` and costs more. Match
 effort to how much deliberation the task actually needs — the tier table
 already pairs each model with a sensible default, so deviate consciously.
-Fable models always use extended thinking; you can't turn it off, which is
-another reason not to put routine work there.
+Fable models and Opus 5.5 always use extended thinking; you can't turn it
+off, so effort is the only lever — and one more reason routine work belongs
+on `sonnet` or the free tier, not the top tier.
 
 ### 10. Filter verbose output at the source
 
