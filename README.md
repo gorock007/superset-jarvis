@@ -2,12 +2,12 @@
 
 **You talk to one agent. A team of agents does the building.**
 
-Jarvis is an open-source agent skill for [Superset](https://superset.sh). It
-turns a Claude Code session into a lead engineer for your project. That lead
-agent, called Jarvis, plans the work and writes a short brief for each task.
-It starts worker agents in separate Superset terminals, reviews what they hand
-back, and commits it. You never manage the workers. You talk to Jarvis, and
-Jarvis manages them.
+Jarvis is an open-source workflow for running one coordinating agent plus a
+fleet of workers inside [Superset](https://superset.sh). It ships as a Claude
+Code plugin. The coordinating agent, called Jarvis, plans the work and writes
+a short brief for each task. It starts worker agents in separate Superset
+terminals, reviews what they hand back, and commits it. You never manage the
+workers. You talk to Jarvis, and Jarvis manages them.
 
 ```
 you ──▶ Jarvis (Claude Code · fable · high)
