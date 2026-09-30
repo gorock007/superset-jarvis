@@ -1,0 +1,521 @@
+#!/usr/bin/env bash
+# jarvis — the routine steps of the Jarvis workflow, one command each, so the
+# coordinator spends its turns on judgement instead of bookkeeping.
+#
+#   jarvis start                       claim this terminal as Jarvis in OPEN.md, then status
+#   jarvis status                      band, workers, new handoffs, git — one short screen
+#   jarvis spawn <brief.md> [--after <partial-handoff>] [--force]
+#                                      lint, enforce the band and the Claude cap, spawn, record
+#   jarvis merge <handoff.md> --check  file list vs git status, diff stat; changes nothing
+#   jarvis merge <handoff.md> [-m <msg>] [--outcome <o>] [--no-push] [--keep-open] [--force]
+#                                      commit exactly the listed files + the handoff move,
+#                                      push, close the worker, update OPEN.md
+#   jarvis watch [--once]              run in its own terminal (no model): wakes Jarvis when a
+#                                      handoff lands, and /clears it first after a long idle
+#   jarvis band                        the usage band from the latest statusline reading
+#   jarvis usage [--days N | --since DATE]
+#                                      coordinating vs building, from local transcripts
+#   jarvis hook prompt                 UserPromptSubmit guard (from .claude/settings.json)
+#   jarvis statusline                  statusline tap: saves the 5-hour reading, then runs yours
+#
+# Settings live in handoffs/jarvis.conf. Works on the stock macOS bash (3.2).
+# jq is needed for spawn, the hooks and the band; everything fails open without it.
+set -u
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || ROOT="${CLAUDE_PROJECT_DIR:-$PWD}"
+cd "$ROOT" || exit 0
+H=handoffs
+OPEN="$H/OPEN.md"
+STATE="$H/.jarvis"
+BIN="$H/bin"
+
+JARVIS_MAX_CLAUDE=3      # Claude sessions at once, Jarvis included; Codex/OpenCode don't count
+JARVIS_AMBER=50          # 5-hour % that turns the band amber
+JARVIS_RED=75            # 5-hour % that turns it red
+JARVIS_IDLE_MIN=55       # minutes idle after which a big context is cheaper to clear than reload
+JARVIS_GUARD_TOKENS=100000
+JARVIS_WATCH_SEC=60
+JARVIS_PUSH=1
+# shellcheck disable=SC1090
+[ -f "$H/jarvis.conf" ] && . "$H/jarvis.conf"
+WS="${SUPERSET_WORKSPACE_ID:-}"
+
+LIMIT_RE="(usage|rate|session|weekly|daily|hourly|5-hour) limit (was |has been )?(reached|exceeded|hit)|(hit|reached|exceeded) (your|the) [a-z0-9 -]*limit|limit reached|quota (was |has been )?(exceeded|exhausted)|out of credits|too many requests"
+
+die() { echo "jarvis: $*" >&2; exit 1; }
+have() { command -v "$1" >/dev/null 2>&1; }
+now() { date +%s; }
+short() { printf '%s' "$1" | cut -c1-8; }
+mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0; }
+
+# ---------------------------------------------------------------- OPEN.md
+
+jarvis_terminal() {
+  sed -n 's/^Jarvis session:[[:space:]]*//p' "$OPEN" 2>/dev/null | head -n 1 | awk '{print $1}' | grep -v '^<' || true
+}
+
+# "- <when> · <agent>/<model> <effort> · term <id> · <brief> · <slug>"
+running_lines() {
+  awk '/^## /{on = ($0 ~ /^## Running workers/); next} on && /^- /' "$OPEN" 2>/dev/null
+}
+
+claude_sessions() { # Jarvis plus every running Claude worker
+  echo $(( $(running_lines | grep -c '· claude/') + 1 ))
+}
+
+open_add_running() { # $1 = line
+  local tmp; tmp=$(mktemp) || return 1
+  awk -v line="$1" '{print} /^## Running workers/ && !done {print line; done=1}' "$OPEN" > "$tmp" && mv "$tmp" "$OPEN"
+}
+
+open_drop() { # drop list items that mention $1
+  local tmp; tmp=$(mktemp) || return 1
+  awk -v k="$1" '!(/^- / && index($0, k))' "$OPEN" > "$tmp" && mv "$tmp" "$OPEN"
+}
+
+open_set() { # $1 = "Jarvis session" | "Usage band", $2 = value
+  local tmp; tmp=$(mktemp) || return 1
+  awk -v k="$1" -v v="$2" 'index($0, k ":") == 1 {print k ": " v; next} {print}' "$OPEN" > "$tmp" && mv "$tmp" "$OPEN"
+}
+
+field() { # $1 = key, $2 = file: "key: value" from a brief header or handoff
+  sed -n "s/^$1:[[:space:]]*//p" "$2" 2>/dev/null | head -n 1
+}
+
+# ---------------------------------------------------------------- band
+
+# Prints "<band>\t<one-line explanation>". The reading comes from `jarvis statusline`,
+# which Claude Code feeds its own 5-hour and 7-day rate-limit numbers.
+band() {
+  local f="$STATE/usage.json"
+  have jq || { printf 'unknown\tjq not installed\n'; return; }
+  [ -s "$f" ] || { printf 'unknown\tno statusline reading yet — check `/usage` and write the band by hand\n'; return; }
+  jq -r --argjson now "$(now)" --argjson amber "$JARVIS_AMBER" --argjson red "$JARVIS_RED" '
+    def hm: (. / 60 | floor) as $m | "\($m / 60 | floor)h\($m % 60 | tostring | if length < 2 then "0" + . else . end)m";
+    (.five_hour.used_percentage // null) as $u
+    | (.five_hour.resets_at // null) as $r
+    | (.seven_day.used_percentage // null) as $w
+    | (($now - .ts) / 60 | floor) as $age
+    | if $u == null or $r == null then "unknown\tthe reading has no 5-hour window"
+      elif $now >= $r then "green\tthe 5-hour window has reset since the last reading (\($age) min ago)"
+      else
+        (18000 - ($r - $now)) as $el
+        | (if $el >= 1800 then ($u * 18000 / $el) else null end) as $pace
+        | (if $u >= $red or ($w // 0) >= 95 then "red"
+           elif $u >= $amber or ($pace // 0) >= 100 or ($w // 0) >= 80 then "amber"
+           else "green" end) as $b
+        | "\($b)\t5h \($u | round)% used, \($el | hm) into the window"
+          + (if $pace then ", on pace for \($pace | round)%" else "" end)
+          + (if $w then " · 7d \($w | round)%" else "" end)
+          + (if $age > 20 then " · reading \($age) min old" else "" end)
+      end' "$f" 2>/dev/null || printf 'unknown\tunreadable %s\n' "$f"
+}
+
+cmd_band() { band | tr '\t' ' '; }
+
+# ---------------------------------------------------------------- start / status
+
+cmd_start() {
+  local me old
+  me="${SUPERSET_TERMINAL_ID:-}"
+  [ -f "$OPEN" ] || die "no $OPEN — run jarvis:setup first"
+  [ -n "$me" ] || die "SUPERSET_TERMINAL_ID not set — run Jarvis in a Superset terminal"
+  old=$(jarvis_terminal)
+  if [ -n "$old" ] && [ "$old" != "$me" ] && [ "${1:-}" != --force ] && [ -n "$WS" ] \
+     && superset terminals list --workspace "$WS" --json 2>/dev/null | grep -q "$old"; then
+    die "another Jarvis ($old) is still open — ask the user, then: jarvis start --force"
+  fi
+  open_set "Jarvis session" "$me"
+  mkdir -p "$STATE"
+  cmd_status
+}
+
+cmd_status() {
+  local b line id brief ho ids="" n=0 changed claimed unclaimed
+  [ -f "$OPEN" ] || die "no $OPEN — run jarvis:setup first"
+
+  b=$(band)
+  printf 'band: %s\n' "$(printf '%s' "$b" | tr '\t' ' ' | sed 's/ /: /')"
+  case "$(printf '%s' "$b" | cut -f1)" in
+    green|amber|red) open_set "Usage band" "$(printf '%s' "$b" | cut -f1) ($(printf '%s' "$b" | cut -f2 | cut -d, -f1), $(date +%H:%M))" ;;
+  esac
+
+  printf 'claude sessions: %s of %s (Jarvis included)\n' "$(claude_sessions)" "$JARVIS_MAX_CLAUDE"
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    n=$((n + 1))
+    id=$(printf '%s' "$line" | sed -n 's/.*term \([^ ]*\).*/\1/p')
+    brief=$(printf '%s' "$line" | grep -o "$H/briefs/[^ ]*\.md" | head -n 1)
+    ho=""
+    [ -n "$brief" ] && ho=$(grep -l "^brief:[[:space:]]*$brief" "$H"/*.md 2>/dev/null | head -n 1)
+    printf '  %s %s %s' "$(short "$id")" "$(printf '%s' "$line" | awk -F' · ' '{print $2}')" "$(basename "${brief:-?}" .md)"
+    if [ -n "$ho" ]; then printf '  → %s (%s)\n' "$ho" "$(field status "$ho")"; else echo; fi
+    [ -n "$id" ] && [ -z "$ho" ] && ids="$ids $id"
+  done <<EOF
+$(running_lines)
+EOF
+  [ $n = 0 ] && echo "  no workers running"
+
+  if [ -n "$ids" ]; then
+    echo "workers still at it:"
+    if [ -x "$BIN/jev.sh" ]; then
+      # shellcheck disable=SC2086
+      "$BIN/jev.sh" triage $ids 2>/dev/null | sed 's/^/  /'
+    else
+      for id in $ids; do
+        printf '  %s\n' "$(short "$id")"
+        superset terminals read --workspace "$WS" --terminal "$id" --max-lines 40 --json 2>/dev/null \
+          | { have jq && jq -r '.text // empty' || cat; } | sed -e 's/[[:space:]]*$//' | grep -v '^$' | tail -n 4 | sed 's/^/      /'
+      done
+    fi
+  fi
+
+  # handoffs on disk that no running worker accounts for
+  for ho in "$H"/*.md; do
+    [ -f "$ho" ] || continue
+    case "$(basename "$ho")" in OPEN.md|TEMPLATE.md|JARVIS.md) continue ;; esac
+    brief=$(field brief "$ho")
+    running_lines | grep -q "${brief:-@@none@@}" && continue
+    echo "handoff not tied to a running worker: $ho ($(field status "$ho"))"
+  done
+
+  changed=$(git status --porcelain -uall 2>/dev/null | grep -v " $H/" | wc -l | tr -d ' ')
+  claimed=0
+  for ho in "$H"/*.md; do [ -f "$ho" ] && claimed=$((claimed + $(listed_files "$ho" | wc -l))); done
+  unclaimed=$((changed - claimed)); [ $unclaimed -lt 0 ] && unclaimed=0
+  printf 'git: %s changed outside handoffs/ · about %s not in any handoff yet · %s\n' \
+    "$changed" "$unclaimed" "$(git log -1 --format='last commit %h %ar' 2>/dev/null)"
+  n=$(awk '/^## /{on = ($0 ~ /^## To-do/); next} on && /^- /' "$OPEN" | wc -l | tr -d ' ')
+  q=$(awk '/^## /{on = ($0 ~ /^## Questions for the user/); next} on && /^- /' "$OPEN" | wc -l | tr -d ' ')
+  printf 'OPEN.md: %s question(s) for the user · %s to-do\n' "$q" "$n"
+}
+
+# ---------------------------------------------------------------- spawn
+
+cmd_spawn() {
+  local brief="" after="" force=0 worker model effort tier prompt out id b cap_now
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --after) after="${2:-}"; shift 2 ;;
+      --force) force=1; shift ;;
+      *) brief="$1"; shift ;;
+    esac
+  done
+  [ -f "$brief" ] || die "usage: jarvis spawn <handoffs/briefs/file.md> [--after <partial handoff>] [--force]"
+  have jq || die "jq is needed to read the spawn result"
+  [ -n "$WS" ] || die "SUPERSET_WORKSPACE_ID not set"
+
+  worker=$(field worker "$brief" | awk '{print $1}')
+  model=$(field model "$brief" | awk '{print $1}')
+  effort=$(field effort "$brief" | awk '{print $1}')
+  case "$worker" in claude|codex|opencode) ;; *) die "brief header needs worker: claude | codex | opencode" ;; esac
+  case "$model" in \<*|"") [ "$worker" = opencode ] || die "brief header needs a model" ;; esac
+  case "$model" in fable) tier=top ;; claude-opus-5-5|opus) tier=workhorse ;; *) tier=other ;; esac
+
+  if [ -x "$BIN/jev.sh" ]; then
+    "$BIN/jev.sh" brief "$brief" || [ $force = 1 ] || die "sharpen the brief (or --force if the lint is wrong)"
+  fi
+
+  b=$(band | cut -f1)
+  if [ "$worker" = claude ] && [ $force = 0 ]; then
+    [ "$b" = red ] && [ "$tier" != other ] && die "band is red: new $tier-tier work goes to Codex (gpt-6-astra / gpt-5.6-sol). Edit the header, or --force"
+    [ "$b" = amber ] && [ "$model" = fable ] && die "band is amber: fable is off for workers. Use model: claude-opus-5-5 (amber band; fable-tier task), or --force"
+    cap_now=$(claude_sessions)
+    if [ "$cap_now" -ge "$JARVIS_MAX_CLAUDE" ]; then
+      die "Claude cap reached ($cap_now of $JARVIS_MAX_CLAUDE, Jarvis included). Queue it under To-do in OPEN.md, route it to OpenCode/Codex, or --force"
+    fi
+  fi
+
+  prompt="You are a Jarvis worker. Read AGENTS.md, then do the task in $brief."
+  [ -n "$after" ] && prompt="$prompt $after records what is already done — start from there."
+  [ "$worker" = opencode ] && prompt="$prompt Touch only the files it lists. Never run git commands that change state."
+  prompt="$prompt Put every question in one first handoff (status: blocked); once answered, finish this brief and hand off."
+
+  set -- --workspace "$WS" --agent "$worker" --prompt "$prompt" --json
+  case "$worker" in
+    opencode) [ -n "$model" ] && case "$model" in \<*) ;; *) set -- "$@" --model "$model" ;; esac ;;
+    *) set -- "$@" --model "$model"; [ -n "$effort" ] && set -- "$@" --effort "$effort" ;;
+  esac
+  out=$(superset agents create "$@" 2>&1) || die "spawn failed (a failed Claude spawn means the red band): $out"
+  id=$(printf '%s' "$out" | jq -r '.sessionId // empty' 2>/dev/null)
+  [ -n "$id" ] || die "no sessionId in: $out"
+
+  sed -i.bak -E "s/^started:.*/started: $(date '+%Y-%m-%d %H:%M') · terminal: $id/" "$brief" && rm -f "$brief.bak"
+  open_add_running "- $(date '+%Y-%m-%d %H:%M') · $worker/${model:-default}${effort:+ $effort} · term $id · $brief"
+  echo "spawned $(short "$id") $worker/${model:-default}${effort:+ $effort} ← $brief (Claude sessions $(claude_sessions) of $JARVIS_MAX_CLAUDE)"
+}
+
+# ---------------------------------------------------------------- merge
+
+listed_files() { # the paths under "## Files" in a handoff
+  awk '/^## /{on = ($0 ~ /^## Files/); next} on && /^[[:space:]]*[-*] /' "$1" \
+    | sed -E -e 's/^[[:space:]]*[-*][[:space:]]+//' -e 's/`//g' \
+             -e 's/[[:space:]]+(—|–|--|-|\().*$//' -e 's/[[:space:]]+$//' \
+    | grep -v '^path/relative' | grep -v '^$'
+}
+
+changed_paths() { # every changed/untracked path, renames as their new path
+  git status --porcelain -uall 2>/dev/null | cut -c4- | sed -e 's/.* -> //' -e 's/^"//' -e 's/"$//'
+}
+
+cmd_merge() {
+  local ho="" check=0 msg="" outcome="" push="$JARVIS_PUSH" keep=0 force=0
+  local status brief agent files f bad=0 other title dest trailer sha term old_tracked=0
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --check) check=1; shift ;;
+      -m) msg="${2:-}"; shift 2 ;;
+      --outcome) outcome="${2:-}"; shift 2 ;;
+      --no-push) push=0; shift ;;
+      --keep-open) keep=1; shift ;;
+      --force) force=1; shift ;;
+      *) ho="$1"; shift ;;
+    esac
+  done
+  [ -f "$ho" ] || die "usage: jarvis merge <handoffs/file.md> [--check] [-m msg] [--outcome clean|corrected|escalated|respawned] [--no-push] [--keep-open]"
+  status=$(field status "$ho" | awk '{print $1}')
+  brief=$(field brief "$ho" | awk '{print $1}')
+  agent=$(field agent "$ho")
+  files=$(listed_files "$ho")
+  [ -n "$files" ] || die "$ho lists no files under ## Files"
+
+  echo "$ho · status: $status · brief: ${brief:-none}"
+  for f in $files; do
+    if changed_paths | grep -qxF "$f"; then :; else
+      echo "  ✗ listed but not changed: $f"; bad=1
+    fi
+  done
+  other=$(changed_paths | grep -v "^$H/" | grep -vxF "$files")
+  if [ -n "$other" ]; then
+    echo "  other changes in the checkout (another worker's, or missing from this list):"
+    printf '%s\n' "$other" | head -n 12 | sed 's/^/    /'
+  fi
+  git diff --stat -- $files 2>/dev/null | sed 's/^/  /'
+  for f in $files; do
+    git ls-files --error-unmatch -- "$f" >/dev/null 2>&1 || [ ! -f "$f" ] || echo "   new: $f ($(wc -l < "$f" | tr -d ' ') lines)"
+  done
+  [ $check = 1 ] && exit $bad
+
+  [ "$status" = blocked ] && die "status is blocked — answer its questions first"
+  [ $bad = 1 ] && [ $force = 0 ] && die "file list doesn't match git status — send it back, or --force"
+
+  mkdir -p "$H/merged"
+  dest="$H/merged/$(basename "$ho")"
+  term=$(sed -n 's/.*terminal:[[:space:]]*\([^ ]*\).*/\1/p' "$brief" 2>/dev/null | head -n 1)
+  case "$term" in ""|\<*) term="" ;; esac
+  [ -n "$brief" ] && open_drop "$brief"
+  open_drop "$(basename "$ho")"
+  git ls-files --error-unmatch -- "$ho" >/dev/null 2>&1 && old_tracked=1
+  mv "$ho" "$dest"
+  set -- $files "$dest"
+  [ $old_tracked = 1 ] && set -- "$@" "$ho"
+  [ -n "$brief" ] && [ -f "$brief" ] && set -- "$@" "$brief"
+  [ -f "$OPEN" ] && set -- "$@" "$OPEN"
+  git add -A -- "$@" || die "git add failed"
+
+  title=$(sed -n '1s/^#[[:space:]]*//p' "$dest")
+  [ -n "$msg" ] || msg="$title"
+  trailer=""
+  case "$agent" in
+    claude*) trailer="Co-Authored-By: Claude Code <$(printf '%s' "$agent" | awk '{print $2}')> worker" ;;
+    codex*) trailer="Co-Authored-By: Codex <$(printf '%s' "$agent" | awk '{print $2}')> worker" ;;
+    opencode*) trailer="Co-Authored-By: OpenCode <$(printf '%s' "$agent" | awk '{print $2}')> worker" ;;
+  esac
+  if [ -n "$trailer" ]; then
+    git commit -q -m "$msg" -m "$trailer" -- "$@" || die "commit failed"
+  else
+    git commit -q -m "$msg" -- "$@" || die "commit failed"
+  fi
+  sha=$(git rev-parse --short HEAD)
+  line="merged $sha · $(printf '%s\n' $files | wc -l | tr -d ' ') files"
+
+  if [ "$push" = 1 ]; then
+    if git push -q 2>/dev/null; then line="$line · pushed"; else line="$line · push FAILED (run git push)"; fi
+  fi
+  if [ $keep = 0 ] && [ -n "$term" ] && [ -n "$WS" ]; then
+    superset terminals close --workspace "$WS" --terminal "$term" >/dev/null 2>&1 && line="$line · closed $(short "$term")"
+  fi
+  if [ -n "$outcome" ] && [ -x "$BIN/jev.sh" ] && [ -n "$brief" ]; then
+    "$BIN/jev.sh" outcome "$brief" "$outcome" >/dev/null 2>&1
+  fi
+  echo "$line · OPEN.md updated in the same commit"
+  return 0
+}
+
+# ---------------------------------------------------------------- watch
+
+jarvis_idle_min() { # minutes since the Jarvis transcript last changed; empty if unknown
+  local tp
+  have jq || return
+  tp=$(jq -r '.transcript_path // empty' "$STATE/session.json" 2>/dev/null)
+  [ -n "$tp" ] && [ -f "$tp" ] || return
+  echo $(( ($(now) - $(mtime "$tp")) / 60 ))
+}
+
+send_jarvis() { # $1 = text
+  superset terminals send --workspace "$WS" --terminal "$(jarvis_terminal)" --text "$1" >/dev/null 2>&1
+}
+
+watch_tick() {
+  local seen="$STATE/watch.seen" events="" ho key id tail_ idle term
+  touch "$seen"
+  for ho in "$H"/*.md; do
+    [ -f "$ho" ] || continue
+    case "$(basename "$ho")" in OPEN.md|TEMPLATE.md|JARVIS.md) continue ;; esac
+    key="$ho $(mtime "$ho") $(field status "$ho")"
+    grep -qxF "$key" "$seen" && continue
+    echo "$key" >> "$seen"
+    events="$events handoff $ho ($(field status "$ho"));"
+  done
+  for id in $(running_lines | sed -n 's/.*term \([^ ]*\).*/\1/p'); do
+    tail_=$(superset terminals read --workspace "$WS" --terminal "$id" --max-lines 15 --json 2>/dev/null \
+      | { have jq && jq -r '.text // empty' || cat; })
+    if printf '%s' "$tail_" | grep -Eiq "$LIMIT_RE"; then
+      key="limit $id $(date +%Y%m%d%H)"
+      grep -qxF "$key" "$seen" || { echo "$key" >> "$seen"; events="$events usage limit in worker $(short "$id");"; }
+    fi
+  done
+  [ -n "$events" ] || return 0
+
+  term=$(jarvis_terminal)
+  [ -n "$term" ] || { echo "$(date +%H:%M) events but no Jarvis session in $OPEN:$events"; return 0; }
+  idle=$(jarvis_idle_min)
+  if [ -n "$idle" ] && [ "$idle" -ge "$JARVIS_IDLE_MIN" ]; then
+    send_jarvis "/clear"
+    sleep 3
+    send_jarvis "[jarvis watch] Fresh session: Jarvis was idle ${idle} min, so its cache had expired. You are Jarvis — use the jarvis:run skill, read handoffs/JARVIS.md and handoffs/OPEN.md, run handoffs/bin/jarvis status, then handle:$events"
+    echo "$(date +%H:%M) cleared Jarvis (idle ${idle} min) and woke it:$events"
+  else
+    send_jarvis "[jarvis watch]$events"
+    echo "$(date +%H:%M) woke Jarvis:$events"
+  fi
+}
+
+cmd_watch() {
+  [ -n "$WS" ] || die "SUPERSET_WORKSPACE_ID not set"
+  mkdir -p "$STATE"
+  if [ "${1:-}" = --once ]; then watch_tick; return; fi
+  # first pass only learns what's already there
+  for ho in "$H"/*.md; do
+    [ -f "$ho" ] && echo "$ho $(mtime "$ho") $(field status "$ho")" >> "$STATE/watch.seen"
+  done
+  echo "jarvis watch: every ${JARVIS_WATCH_SEC}s; clears Jarvis first after ${JARVIS_IDLE_MIN} min idle. Ctrl-C to stop."
+  while :; do sleep "$JARVIS_WATCH_SEC"; watch_tick; done
+}
+
+# ---------------------------------------------------------------- hooks
+
+# UserPromptSubmit, Jarvis's terminal only: after a long idle the prompt cache has
+# expired, and the next turn would write the whole context again. Stop the prompt
+# once and suggest /clear; sending it again goes through.
+hook_prompt() {
+  local in sid tp prompt me last gap ctx model price usd marker
+  have jq || exit 0
+  in=$(cat)
+  me="${SUPERSET_TERMINAL_ID:-}"
+  [ -n "$me" ] && [ "$me" = "$(jarvis_terminal)" ] || exit 0
+  sid=$(printf '%s' "$in" | jq -r '.session_id // empty')
+  tp=$(printf '%s' "$in" | jq -r '.transcript_path // empty')
+  prompt=$(printf '%s' "$in" | jq -r '.prompt // empty')
+  [ -n "$sid" ] && [ -f "$tp" ] || exit 0
+  mkdir -p "$STATE"
+  # the watcher reads this to tell how long Jarvis has been idle
+  jq -n --arg t "$me" --arg s "$sid" --arg p "$tp" --argjson ts "$(now)" \
+    '{terminal: $t, session_id: $s, transcript_path: $p, ts: $ts}' > "$STATE/session.json"
+  case "$prompt" in /*) exit 0 ;; esac
+
+  last=$(tail -n 400 "$tp" | jq -c 'select(.type == "assistant" and .message.usage) |
+      {t: .timestamp, m: .message.model, u: .message.usage}' 2>/dev/null | tail -n 1)
+  [ -n "$last" ] || exit 0
+  gap=$(printf '%s' "$last" | jq -r --argjson now "$(now)" \
+    '(.t | sub("\\.[0-9]+"; "") | fromdateiso8601) as $t | (($now - $t) / 60 | floor)' 2>/dev/null) || exit 0
+  ctx=$(printf '%s' "$last" | jq -r '.u | (.input_tokens // 0) + (.cache_read_input_tokens // 0) + (.cache_creation_input_tokens // 0)')
+  model=$(printf '%s' "$last" | jq -r '.m // ""')
+  [ "$gap" -ge "$JARVIS_IDLE_MIN" ] && [ "$ctx" -ge "$JARVIS_GUARD_TOKENS" ] || exit 0
+
+  marker="$STATE/guard-$sid"
+  if [ -f "$marker" ] && [ $(( $(now) - $(mtime "$marker") )) -lt 900 ]; then rm -f "$marker"; exit 0; fi
+  touch "$marker"
+  case "$model" in
+    *fable*) price=20 ;; *opus-5-5*) price=8 ;; *opus*) price=10 ;; *sonnet*) price=4 ;; *haiku*) price=2 ;; *) price=10 ;;
+  esac
+  usd=$(awk -v t="$ctx" -v p="$price" 'BEGIN{printf "%.2f", t * p / 1000000}')
+  jq -n --arg r "Jarvis has been idle ${gap} min, so its prompt cache has expired: this message would write all $((ctx / 1000))k tokens of context again (about \$${usd} at API prices). Cheaper: /clear, then \"resume\" — Jarvis reloads from handoffs/OPEN.md. To go ahead anyway, send your message again." \
+    '{decision: "block", reason: $r}'
+}
+
+# Statusline tap: Claude Code hands the statusline its rate-limit numbers. Save
+# them for `jarvis band`, then run the user's own statusline unchanged.
+cmd_statusline() {
+  local in cmd tmp
+  in=$(cat)
+  if have jq; then
+    mkdir -p "$STATE" 2>/dev/null
+    tmp="$STATE/usage.json.$$"
+    printf '%s' "$in" | jq -c --argjson ts "$(now)" 'select(.rate_limits.five_hour) | .rate_limits + {ts: $ts}' \
+      > "$tmp" 2>/dev/null && [ -s "$tmp" ] && mv "$tmp" "$STATE/usage.json"
+    rm -f "$tmp"
+    cmd="${JARVIS_STATUSLINE_CMD:-$(jq -r '.statusLine.command // empty' "$HOME/.claude/settings.json" 2>/dev/null)}"
+  else
+    cmd="${JARVIS_STATUSLINE_CMD:-}"
+  fi
+  case "$cmd" in *"jarvis statusline"*) cmd="" ;; esac
+  if [ -n "$cmd" ]; then printf '%s' "$in" | sh -c "$cmd"
+  elif have jq; then printf '%s' "$in" | jq -r '"\(.model.display_name // "") · 5h \(.rate_limits.five_hour.used_percentage // "?" | tostring | .[0:4])%"'
+  fi
+}
+
+# ---------------------------------------------------------------- usage
+
+cmd_usage() {
+  local audit proj since_arg json merged
+  have python3 || die "python3 is needed for jarvis usage"
+  have jq || die "jq is needed for jarvis usage"
+  audit="$(cd "$(dirname "$0")" && pwd)/cc_usage_audit.py"
+  [ -f "$audit" ] || die "no $audit — re-run jarvis:setup"
+  proj=$(printf '%s' "$ROOT" | sed 's#[^A-Za-z0-9]#-#g')
+  set -- --project="$proj" \
+    --role worker='^You are a Jarvis worker' \
+    --role-tool orchestrator='superset agents create|handoffs/bin/jarvis (start|status|spawn|merge)' \
+    --bash-category coordination='terminals (read|send|list|close)|handoffs/|OPEN\.md|jev\.sh|bin/jarvis' \
+    "$@"
+  json=$(python3 "$audit" "$@" --json) || exit 1
+  since_arg=$(printf '%s' "$json" | jq -r '.period[0]')
+  merged=$(git log --since="$since_arg" --diff-filter=A --name-only --format= -- "$H/merged/*.md" 2>/dev/null | grep -c '\.md$')
+  printf '%s' "$json" | jq -r --argjson merged "$merged" '
+    def usd: "$" + ((. * 100 | round) / 100 | tostring);
+    def role(r): [.by_role | to_entries[] | select(.key == r or .key == (r + " > subagents")) | .value.usd] | add // 0;
+    (role("orchestrator")) as $coord | (role("worker")) as $build
+    | "jarvis usage · \(.period[0][0:16]) → \(.period[1][0:16]) · \(.total_usd | usd) in this repo at API prices",
+      "  coordinating (Jarvis + its subagents): \($coord | usd)",
+      "  building (workers + their subagents):  \($build | usd)",
+      "  coordinating ÷ building: \(if $build > 0 then ($coord / $build * 100 | round) / 100 else "n/a" end)   (target ≤ 0.3)",
+      "  merged handoffs: \($merged) · cost per merged handoff: \(if $merged > 0 then (($coord + $build) / $merged) | usd else "n/a" end)",
+      "  worst 5-hour window: \(.peak_window_usd | usd) · most sessions in one 10-min slot: \(.peak_concurrent_sessions_10min)",
+      "  cache reloads after idle (Jarvis): \([.reloads[] | select(.role == "orchestrator" and .cause == "after idle")] | "\(map(.turns) | add // 0) turns, \(map(.usd) | add // 0 | usd)")",
+      "",
+      "  Jarvis by model (for comparing coordinator configs):",
+      ([.by_role_model[]? | select(.role == "orchestrator")] | sort_by(-.usd)[]
+        | "    \(.model): \(.turns) turns · \(.usd | usd) · $\((.usd / .turns * 1000 | round) / 1000)/turn · avg ctx \((.ctx / .turns / 1000) | round)k")'
+}
+
+# ---------------------------------------------------------------- main
+
+cmd="${1:-}"
+[ $# -gt 0 ] && shift
+case "$cmd" in
+  start) cmd_start "$@" ;;
+  status) cmd_status ;;
+  band) cmd_band ;;
+  spawn) cmd_spawn "$@" ;;
+  merge) cmd_merge "$@" ;;
+  watch) cmd_watch "$@" ;;
+  usage) cmd_usage "$@" ;;
+  statusline) cmd_statusline ;;
+  hook)
+    case "${1:-}" in
+      prompt) hook_prompt ;;
+      *) exit 0 ;;
+    esac ;;
+  *) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac
