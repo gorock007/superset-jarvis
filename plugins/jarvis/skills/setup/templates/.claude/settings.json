@@ -1,0 +1,26 @@
+{
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "ENABLE_STOP_REVIEW": "0",
+    "SECURITY_REVIEW_MODEL": "claude-sonnet-5",
+    "SG_AGENTIC_MODEL": "claude-sonnet-5"
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/handoffs/bin/jarvis hook prompt",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "\"${CLAUDE_PROJECT_DIR:-.}\"/handoffs/bin/jarvis statusline"
+  },
+  "enabledPlugins": {}
+}
