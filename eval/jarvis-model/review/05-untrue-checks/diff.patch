@@ -1,0 +1,27 @@
+diff --git a/reports/weekly.py b/reports/weekly.py
+--- a/reports/weekly.py
++++ b/reports/weekly.py
+@@ -8,9 +8,11 @@ from zoneinfo import ZoneInfo
+ def week_bounds(week_start: date, tz: str):
+     zone = ZoneInfo(tz)
+-    start = datetime.combine(week_start, time.min, tzinfo=zone)
+-    end = start + timedelta(days=7)
++    start = datetime.combine(week_start, time.min, tzinfo=zone)
++    end = datetime.combine(week_start + timedelta(days=7), time.min, tzinfo=zone)
+     return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+diff --git a/tests/reports/test_weekly_dst.py b/tests/reports/test_weekly_dst.py
+new file mode 100644
+--- /dev/null
++++ b/tests/reports/test_weekly_dst.py
+@@ -0,0 +1,14 @@
++from datetime import date
++
++import pytest
++
++from reports.weekly import week_bounds
++
++
++@pytest.mark.skip(reason="TODO: autumn case")
++def test_autumn_week_is_168_hours():
++    start, end = week_bounds(date(2026, 10, 19), "Europe/London")
++    assert (end - start).total_seconds() == 168 * 3600

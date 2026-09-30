@@ -1,0 +1,1 @@
+{"verdict": "send_back", "defects": [{"kind": "bug", "file": "api/pagination.py"}], "note": "page is 1-based but the slice uses page*size, so page 1 skips the first 50 rows; tests only check lengths on a 120-row fixture"}

@@ -1,0 +1,28 @@
+diff --git a/web/src/components/Header.tsx b/web/src/components/Header.tsx
+--- a/web/src/components/Header.tsx
++++ b/web/src/components/Header.tsx
+@@ -3,7 +3,11 @@ import { Logo } from "./Logo";
+-export function Header({title, onMenu}: {title: string, onMenu: () => void}) {
+-  return <header className="hdr"><Logo/><h1>{title}</h1><button onClick={onMenu}>Menu</button></header>
++export function Header({ title, onMenu }: { title: string; onMenu: () => void }) {
++  return (
++    <header className="hdr">
++      <Logo />
++      <h1>{title}</h1>
++      <button onClick={onMenu}>Menu</button>
++    </header>
++  );
+ }
+diff --git a/web/src/components/Sidebar.tsx b/web/src/components/Sidebar.tsx
+--- a/web/src/components/Sidebar.tsx
++++ b/web/src/components/Sidebar.tsx
+@@ -10,3 +10,3 @@ export function Sidebar({ items }: Props) {
+-  return <nav>{items.map(i => <a key={i.href} href={i.href}>{i.label}</a>)}</nav>
++  return <nav>{items.map((i) => <a key={i.href} href={i.href}>{i.label}</a>)}</nav>;
+ }
+diff --git a/web/src/lib/format.ts b/web/src/lib/format.ts
+--- a/web/src/lib/format.ts
++++ b/web/src/lib/format.ts
+@@ -1,4 +1,4 @@
+-export const money = (cents:number) => `$${(cents/100).toFixed(2)}`
++export const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;

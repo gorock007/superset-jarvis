@@ -1,0 +1,78 @@
+diff --git a/api/urls.py b/api/urls.py
+--- a/api/urls.py
++++ b/api/urls.py
+@@ -9,4 +9,5 @@ urlpatterns = [
+     path("credits/", include("billing.credits.urls")),
++    path("invoices/", include("billing.invoices.urls")),
+ ]
+diff --git a/billing/invoices/urls.py b/billing/invoices/urls.py
+--- a/billing/invoices/urls.py
++++ b/billing/invoices/urls.py
+@@ -1,3 +1,6 @@
+ from django.urls import path
++from .views import InvoiceListView
+ 
+-urlpatterns = []
++urlpatterns = [
++    path("", InvoiceListView.as_view(), name="invoice-list"),
++]
+diff --git a/billing/invoices/views.py b/billing/invoices/views.py
+--- a/billing/invoices/views.py
++++ b/billing/invoices/views.py
+@@ -1,2 +1,24 @@
++from billing.credits.pagination import PageNumber25
++from billing.permissions import IsAccountMember
++from billing.payments.gateway import last_payment_at
++from rest_framework.generics import ListAPIView
++from .models import Invoice
++from .serializers import InvoiceSerializer
++
++
++class InvoiceListView(ListAPIView):
++    permission_classes = [IsAccountMember]
++    pagination_class = PageNumber25
++    serializer_class = InvoiceSerializer
++
++    def get_queryset(self):
++        qs = Invoice.objects.filter(account=self.request.user.account).order_by("-issued_at")
++        status = self.request.query_params.get("status")
++        return qs.filter(status=status) if status else qs
++
++    def get_serializer_context(self):
++        ctx = super().get_serializer_context()
++        ctx["last_payment_at"] = last_payment_at
++        return ctx
+diff --git a/billing/payments/gateway.py b/billing/payments/gateway.py
+--- a/billing/payments/gateway.py
++++ b/billing/payments/gateway.py
+@@ -140,3 +140,12 @@ class Gateway:
+         return self._client.refunds.create(charge=charge_id, amount=amount)
++
++
++def last_payment_at(invoice):
++    """Latest successful payment time for an invoice, from the local ledger."""
++    row = (PaymentLedger.objects.filter(invoice_id=invoice.id, state="succeeded")
++           .order_by("-created_at").values("created_at").first())
++    return row["created_at"] if row else None
+diff --git a/tests/billing/test_invoices_api.py b/tests/billing/test_invoices_api.py
+new file mode 100644
+--- /dev/null
++++ b/tests/billing/test_invoices_api.py
+@@ -0,0 +1,20 @@
++import pytest
++
++
++@pytest.mark.django_db
++def test_lists_own_invoices_newest_first(client_for, account, invoice_factory):
++    old = invoice_factory(account=account, issued_at="2026-08-01")
++    new = invoice_factory(account=account, issued_at="2026-09-01")
++    res = client_for(account).get("/api/invoices/")
++    assert [i["id"] for i in res.json()["items"]] == [new.id, old.id]
++
++
++@pytest.mark.django_db
++def test_status_filter(client_for, account, invoice_factory):
++    invoice_factory(account=account, status="open")
++    invoice_factory(account=account, status="paid")
++    res = client_for(account).get("/api/invoices/?status=open")
++    assert {i["status"] for i in res.json()["items"]} == {"open"}

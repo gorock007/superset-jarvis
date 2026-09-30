@@ -1,0 +1,3 @@
+ M reports/weekly.py
+?? handoffs/2026-09-24-0912-weekly-dst.md
+?? tests/reports/test_weekly_dst.py

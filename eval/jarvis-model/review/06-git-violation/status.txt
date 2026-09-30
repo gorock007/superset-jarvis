@@ -1,0 +1,4 @@
+ M web/src/components/Header.tsx
+ M web/src/components/Sidebar.tsx
+ M web/src/lib/format.ts
+?? handoffs/2026-09-25-1622-prettier-web.md

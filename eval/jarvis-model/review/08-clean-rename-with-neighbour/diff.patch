@@ -1,0 +1,52 @@
+diff --git a/.env.example b/.env.example
+--- a/.env.example
++++ b/.env.example
+@@ -3,1 +3,1 @@
+-REDIS_URI=redis://localhost:6379/0
++REDIS_URL=redis://localhost:6379/0
+diff --git a/app/config.py b/app/config.py
+--- a/app/config.py
++++ b/app/config.py
+@@ -1,3 +1,4 @@
+ import os
++import warnings
+ 
+ 
+@@ -12,5 +13,12 @@ def _env(name, default=None):
+ 
+ 
+-REDIS_URI = _env("REDIS_URI", "redis://localhost:6379/0")
++def _redis_url():
++    if "REDIS_URL" in os.environ:
++        return os.environ["REDIS_URL"]
++    if "REDIS_URI" in os.environ:
++        warnings.warn("REDIS_URI is deprecated; set REDIS_URL", DeprecationWarning, stacklevel=2)
++        return os.environ["REDIS_URI"]
++    return "redis://localhost:6379/0"
++
++
++REDIS_URL = _redis_url()
+diff --git a/docs/deploy.md b/docs/deploy.md
+--- a/docs/deploy.md
++++ b/docs/deploy.md
+@@ -40,1 +40,1 @@
+-| `REDIS_URI` | Redis connection string |
++| `REDIS_URL` | Redis connection string (`REDIS_URI` still read, deprecated) |
+diff --git a/tests/test_config.py b/tests/test_config.py
+--- a/tests/test_config.py
++++ b/tests/test_config.py
+@@ -30,3 +30,17 @@ def test_database_url_fallback(monkeypatch):
+     assert config._database_url() == "postgres://old"
++
++
++def test_redis_url_preferred(monkeypatch):
++    monkeypatch.setenv("REDIS_URL", "redis://new")
++    monkeypatch.setenv("REDIS_URI", "redis://old")
++    assert config._redis_url() == "redis://new"
++
++
++def test_redis_uri_fallback_warns(monkeypatch):
++    monkeypatch.delenv("REDIS_URL", raising=False)
++    monkeypatch.setenv("REDIS_URI", "redis://old")
++    with pytest.warns(DeprecationWarning):
++        assert config._redis_url() == "redis://old"

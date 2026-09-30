@@ -1,0 +1,2 @@
+Other running workers (from OPEN.md):
+- term_91aa07 · claude/claude-opus-5-5 · handoffs/briefs/2026-09-25-1530-add-zod.md · may touch web/package.json, bun.lock, web/src/api/schemas.ts

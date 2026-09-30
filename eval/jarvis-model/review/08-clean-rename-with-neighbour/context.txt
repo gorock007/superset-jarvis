@@ -1,0 +1,2 @@
+Other running workers (from OPEN.md):
+- term_77ab3f · claude/sonnet · handoffs/briefs/2026-09-26-1340-save-spinner.md · may touch web/src/components/SaveButton.tsx, web/src/components/SaveButton.test.tsx

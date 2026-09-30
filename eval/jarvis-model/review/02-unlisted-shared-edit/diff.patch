@@ -1,0 +1,42 @@
+diff --git a/web/src/components/SaveButton.tsx b/web/src/components/SaveButton.tsx
+--- a/web/src/components/SaveButton.tsx
++++ b/web/src/components/SaveButton.tsx
+@@ -1,14 +1,18 @@
+ import { Button } from "./Button";
++import { Spinner } from "./Spinner";
+ import { useSaveDraft } from "../hooks/useSaveDraft";
+ 
+ export function SaveButton({ draftId }: { draftId: string }) {
+-  const { mutate } = useSaveDraft(draftId);
++  const { mutate, isPending } = useSaveDraft(draftId);
+   return (
+-    <Button variant="secondary" onClick={() => mutate()}>
+-      Save
++    <Button variant="secondary" onClick={() => mutate()} disabled={isPending} aria-busy={isPending}>
++      {isPending ? <Spinner size="sm" /> : "Save"}
+     </Button>
+   );
+ }
+diff --git a/web/src/components/SaveButton.test.tsx b/web/src/components/SaveButton.test.tsx
+--- a/web/src/components/SaveButton.test.tsx
++++ b/web/src/components/SaveButton.test.tsx
+@@ -40,3 +40,12 @@ describe("SaveButton", () => {
+     expect(mutate).toHaveBeenCalledOnce();
+   });
++
++  it("shows a spinner and disables itself while saving", () => {
++    mockSaveDraft({ isPending: true });
++    render(<SaveButton draftId="d1" />);
++    expect(screen.getByRole("button")).toBeDisabled();
++    expect(screen.getByTestId("spinner")).toBeInTheDocument();
++  });
+ });
+diff --git a/web/src/theme/tokens.ts b/web/src/theme/tokens.ts
+--- a/web/src/theme/tokens.ts
++++ b/web/src/theme/tokens.ts
+@@ -31,7 +31,7 @@ export const tokens = {
+   spinner: {
+-    sm: { size: 14, stroke: 2 },
++    sm: { size: 16, stroke: 2 },
+     md: { size: 20, stroke: 2.5 },
+   },

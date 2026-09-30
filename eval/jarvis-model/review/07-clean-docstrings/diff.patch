@@ -1,0 +1,30 @@
+diff --git a/billing/tax.py b/billing/tax.py
+--- a/billing/tax.py
++++ b/billing/tax.py
+@@ -4,9 +4,29 @@ from decimal import Decimal, ROUND_HALF_UP
+ 
+ def vat_rate(country: str) -> Decimal:
++    """Return the standard VAT rate for a country.
++
++    Args:
++        country: ISO 3166-1 alpha-2 code, e.g. "GB".
++
++    Returns:
++        The rate as a fraction (Decimal("0.20") for 20%), or Decimal("0")
++        when the country has no VAT entry.
++    """
+     return RATES.get(country.upper(), Decimal("0"))
+ 
+ 
+ def apply_vat(net_cents: int, country: str) -> int:
++    """Add VAT to a net amount.
++
++    Args:
++        net_cents: Net amount in minor units.
++        country: ISO 3166-1 alpha-2 code.
++
++    Returns:
++        The gross amount in minor units, rounded half up.
++    """
+     gross = Decimal(net_cents) * (1 + vat_rate(country))
+     return int(gross.quantize(Decimal("1"), rounding=ROUND_HALF_UP))

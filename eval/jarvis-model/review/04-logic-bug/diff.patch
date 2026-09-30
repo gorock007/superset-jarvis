@@ -1,0 +1,52 @@
+diff --git a/api/pagination.py b/api/pagination.py
+--- a/api/pagination.py
++++ b/api/pagination.py
+@@ -1,17 +1,20 @@
+-DEFAULT_PAGE_SIZE = 20
++DEFAULT_PAGE_SIZE = 50
++MAX_PAGE_SIZE = 200
+ 
+ 
+ def paginate(qs, request):
+     page = max(int(request.GET.get("page", 1)), 1)
+-    size = DEFAULT_PAGE_SIZE
+-    start = (page - 1) * size
+-    end = start + size
+-    items = list(qs[start:end])
++    try:
++        size = int(request.GET.get("page_size", DEFAULT_PAGE_SIZE))
++    except ValueError:
++        size = DEFAULT_PAGE_SIZE
++    size = min(max(size, 1), MAX_PAGE_SIZE)
++    items = list(qs[page * size:(page + 1) * size])
+     return {
+         "items": items,
+         "page": page,
+         "page_size": size,
+         "total": qs.count(),
+     }
+diff --git a/tests/api/test_pagination.py b/tests/api/test_pagination.py
+--- a/tests/api/test_pagination.py
++++ b/tests/api/test_pagination.py
+@@ -12,10 +12,25 @@ def rows():
+-def test_default_page_size_is_20(rf, rows):
++def test_default_page_size_is_50(rf, rows):
+     res = paginate(rows, rf.get("/x"))
+-    assert res["page_size"] == 20
+-    assert len(res["items"]) == 20
++    assert res["page_size"] == 50
++    assert len(res["items"]) == 50
++
++
++def test_page_size_override(rf, rows):
++    res = paginate(rows, rf.get("/x?page_size=10"))
++    assert res["page_size"] == 10 and len(res["items"]) == 10
++
++
++def test_page_size_clamped(rf, rows):
++    assert paginate(rows, rf.get("/x?page_size=9999"))["page_size"] == 200
++    assert paginate(rows, rf.get("/x?page_size=0"))["page_size"] == 1
++
++
++def test_bad_page_size_falls_back(rf, rows):
++    assert paginate(rows, rf.get("/x?page_size=abc"))["page_size"] == 50
