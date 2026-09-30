@@ -1,183 +1,162 @@
 # Working cheaply without working worse
 
-Jarvis is the most expensive session in the project: it's on the best model,
-it runs the longest, and it accumulates the most context. Everything below is
-about buying the same quality for fewer tokens — not about doing less.
+Jarvis runs on the best model and coordinates the whole fleet, so it's the
+easiest session to overspend in. This file records where usage actually went
+when it was measured, and which mechanism now handles each cause.
 
-The governing idea, from Anthropic's context-engineering guidance: context is
-a finite resource with diminishing returns. Good context engineering means
-finding the **smallest set of high-signal tokens** that still produce the
-outcome. Attention is a budget, not just a window — long contexts degrade
-recall as well as costing more.
+An earlier version of this file was only advice. The measurement showed the
+advice wasn't enough: written guidance in a prompt gets followed some of the
+time, and a budget holds only when something enforces it. So each cause
+below now has a script, a setting or a hook behind it, and the prose explains
+why it's there.
 
-## Where the money actually goes
+## What was measured
 
-Claude Code's `/usage` breakdown flags any behaviour responsible for 10%+ of
-recent usage. In practice, for an orchestrator like Jarvis, the ranking is:
+Local Claude Code transcripts from 16–27 Sep 2026, in three repos running
+Jarvis, were priced per request at API rates with `cc_usage_audit.py` (the
+same tool behind `handoffs/bin/jarvis usage`). The dollar figures are
+API-equivalent, used as a proxy for how fast subscription limits go. They
+aren't a bill.
 
-1. **Subagents.** Each one runs its own requests. A session that leans on
-   subagents can account for the large majority of a week's usage, and a
-   single built-in agent type (Explore) is often the biggest line by itself.
-2. **Long context.** Claude Code resends the whole conversation every turn,
-   and every tool call is another request carrying the batch of results. A
-   one-line question in a session that's been open all day still draws usage
-   for the entire history. Sessions above ~150k context are markedly more
-   expensive even when cached.
-3. **Cache misses.** The prompt cache holds for an hour on a subscription
-   (five minutes on usage credits or an API key). The first message after a
-   longer gap reprocesses the full context. Changing tool definitions or
-   system prompt mid-session also invalidates it.
-4. **Parallel sessions.** Every Claude session on the account draws from one
-   limit. Fanning out four workers is four sessions' worth of spend running
-   at once — fine when you need them all, wasteful when they're queued behind
-   each other anyway.
+- The coordinator cost **$251** (Jarvis $178 plus its subagents $73). The
+  workers that did the building cost **$222**. Coordinating ÷ building was
+  about 1.13.
+- The 5-hour window ran out in under two and a half hours, at about $87, and
+  94% of that went to the Jarvis setup. At the peak, 11 Claude sessions ran
+  at once. The weekly limit was at 35% on day 4, so it wasn't the problem.
+  The burst rate was.
+- Per turn, the coordinator averaged 216k of context and $0.20. Half of that
+  went on cache writes, meaning new material entering its context. On Fable
+  5.1, reading the cache is cheap ($0.25/MTok) and writing to it is not
+  ($20/MTok).
 
-Skills and plugins are usually a rounding error. Don't optimise those.
+## Five causes and what handles each one
 
-`/usage` is approximate and covers local sessions **on this machine** — not
-other devices or claude.ai. Press `d`/`w` for the 24-hour and 7-day views.
+### 1. An idle coordinator paid to reload everything
 
-## The ten levers, in order of what they're worth to Jarvis
+The prompt cache lasts an hour. Jarvis often waited longer than that for
+workers, and its next turn wrote its whole 200–400k context to the cache
+again, at up to $7 a time on Fable. 18 of 874 coordinator turns did this (2%
+of turns), and they cost 31% of everything the coordinator spent. 12 of the
+18 came right after an idle gap of more than an hour.
 
-### 1. A precise brief is a model downgrade
+**Now:**
 
-This is the biggest quality-preserving lever Jarvis has, and it's free.
+- `jarvis watch` runs in a plain terminal, with no model. It wakes Jarvis
+  when a handoff lands. If Jarvis has been idle past `JARVIS_IDLE_MIN`, it
+  sends `/clear` first, so the fresh session reloads about 60–80k from
+  `OPEN.md` instead of the old 300k.
+- The prompt guard (`jarvis hook prompt`, a `UserPromptSubmit` hook) stops
+  the user's first message after a long idle when the context is big. It
+  says what the reload would cost and suggests `/clear`. Sending the
+  message again goes through.
+- **Your part:** stop every turn with `OPEN.md` true, and never switch
+  `/model` mid-session.
 
-A vague brief forces the worker to discover the task: it greps, reads ten
-files, guesses at conventions, and needs a top-tier model to recover from
-wrong turns. A precise brief hands that context over: exact file paths, the
-existing pattern to copy, the interfaces it must not change, what done looks
-like, and the command that proves it. The same work then succeeds on `opus`
-— often on `sonnet`.
+### 2. Checking in cost as much as real work
 
-So: **Jarvis spending 2k tokens writing a sharper brief routinely saves a
-worker 50k tokens of exploration, and drops it a tier.** When you catch
-yourself about to send a fuzzy task to `fable`, the first move is to sharpen
-the brief, not to raise the model.
+A turn is priced by the context it carries, not by what it does.
+Coordination turns cost 46% of the coordinator's spend: reading worker
+terminals, handoffs and `OPEN.md`, running `jev.sh`, spawning, and sending
+messages. Their tool results averaged under 1k tokens. What made each turn
+expensive was the ~216k of context it carried.
 
-A brief that makes a task cheap:
+**Now:** routine steps are one command each. `jarvis status` replaces a
+terminal read per worker. `jarvis merge` replaces the 6–10 turns of checking
+the file list, reading the diff stat, committing, moving the handoff,
+pushing, closing the terminal and editing `OPEN.md`. `jarvis spawn`
+replaces writing the command, parsing its JSON and editing the brief and
+`OPEN.md`. The watcher replaces sleep loops.
 
-- **Names the files.** `src/classify/rules.py` and `tests/test_rules.py`, not
-  "the classification code".
-- **Names the pattern.** "Follow `ingest/x.py` — same structure, same error
-  handling." One pointer beats a paragraph of description and beats the
-  worker reading five files to infer the convention.
-- **States done and how to prove it.** "`backlog classify --dry-run` prints
-  one line per save with a label; `pytest tests/test_rules.py` green."
-- **Fences the scope.** May touch / must not touch. A worker that knows it
-  can't touch the schema doesn't read the schema.
-- **Carries the decisions.** Link the prior handoff in `handoffs/merged/`
-  instead of re-deriving what was decided.
+**Your part:** spend turns on judgement. If you catch yourself doing the same
+three steps again, suggest adding them to the script.
 
-If you can't write those five things, that's the signal the task is genuinely
-undecided — which is when `fable` is the right call, and often when the task
-should be split into a small `fable` design brief plus an `opus` build brief.
+### 3. A hook that ran after every stop
 
-### 2. Subagents: narrow, cheap, and summarising
+The `security-guidance` plugin's Stop hook ran a full security review on
+`claude-opus-4-7` every time any session stopped with changes. With ten
+workers sharing one checkout, that meant 116 reviews for $71, up to $23 a
+day, reviewing the same files over and over. The cost never appears in
+`/usage`'s breakdown, because the hook runs as its own SDK session.
 
-Subagents are a context *isolation* tool, not a free lunch: they save tokens
-only when the clutter they keep out of Jarvis's context is worth more than
-their startup overhead. Reading one file is not worth a subagent; reading
-fifteen to answer one question is.
+**Now:** the repo's `.claude/settings.json` sets `ENABLE_STOP_REVIEW=0`. The
+plugin documents that switch for shared-worktree setups. It keeps the
+per-commit review, which fires once per `jarvis merge`. It also sets
+`SECURITY_REVIEW_MODEL` and `SG_AGENTIC_MODEL` to Sonnet. The general
+lesson: anything that fires per stop, per edit or per session multiplies by
+the number of agents.
 
-- **Set their model.** A subagent defined in `.claude/agents/<name>.md` takes
-  a `model:` field. `sonnet` is the safe default for exploration and review;
-  `haiku` for mechanical summarising. Don't put planning-type subagents on
-  `haiku` — a weak planner causes compounding mistakes downstream that cost
-  more than they save.
-- **Ask for a conclusion, not a dump.** "Return under 300 words: the three
-  files that matter and what each does." A subagent that explores 50k tokens
-  and hands back 500 is the whole point.
-- **Never for edits.** In this workflow, anything that changes the repo goes
-  to a Superset worker with its own session and its own handoff. Subagents
-  read.
+### 4. Built-in subagents ran on expensive models
 
-### 3. Keep `CLAUDE.md` short
+The pinned `scout` and `diff-reviewer` agents (Sonnet) were cheap. The
+built-in ones ran on whatever model the parent used: Explore on Opus 5 cost
+$32, and general-purpose and Plan on Fable cost $23.
 
-`CLAUDE.md` is loaded at session start and sits in context for every turn —
-a 5k-token file costs 5k tokens whether the session runs 2 messages or 200.
-Keep it under ~200 lines and only for what's true on every task. Detail
-belongs in skills like this one, which load only when invoked. The same goes
-for `AGENTS.md` in each worker's session.
+**Now:** `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` in the repo's settings puts
+every subagent without its own `model:` on Sonnet, the built-in ones
+included. The same repo settings can switch off plugins the repo doesn't
+use (`enabledPlugins`), which also shortens every session's skill listing.
 
-### 4. Batch the polling
+### 5. Workers never reset, and each started heavy
 
-Every `terminals read` is a tool call, and every tool call re-sends Jarvis's
-whole conversation. Polling five workers one at a time at 150k context is
-five full-context requests for information that hasn't changed.
+Briefs used to say "build every phase through to done", so one session
+carried the whole job and grew to 350–420k of context. 67% of worker spend
+happened past 150k. Every worker also started at about 55k tokens before
+reading anything. About 23k of that is controllable: the skill listing
+(~9k), deferred tool names (~4k), the orchestrator's `CLAUDE.md` (~3k),
+MCP instructions (~2k) and the agent listing (~1k).
 
-- Poll on events, not on a timer: after the user speaks, after a merge, when
-  you've nothing else to do.
-- Batch reads into one bash call rather than five tool calls:
-  `for t in <id1> <id2>; do superset terminals read --workspace "$SUPERSET_WORKSPACE_ID" --terminal $t --max-lines 25; done`
-- Better, where the repo has it: `handoffs/bin/jev.sh triage <id1> <id2>`
-  reads the screens *outside* your context and hands back one line per
-  worker, plus the last 15 lines only for a worker that needs you. Five quiet
-  workers cost five lines instead of 125. It's optional and fail-open
-  (`references/jev.md`); when it says `skipped`, use the loop above.
-- Keep `--max-lines` small. You want the last few lines and whether a handoff
-  appeared — `ls handoffs/*.md` answers the second question more cheaply than
-  reading a screen.
-- The handoff file is the signal; the terminal is the debugger. Read screens
-  when something looks wrong, not to confirm progress.
+**Now:**
 
-### 5. Read files the cheap way
+- **One brief per phase.** The next phase gets a fresh worker spawned with
+  `--after` the previous handoff.
+- `CLAUDE.md` is a few lines, because every worker loads it. The Jarvis
+  rules moved to `handoffs/JARVIS.md`, which only Jarvis reads.
+- Unused plugins are off in the repo's settings.
+- **Model choice** roughly doubles or halves the cost per worker turn:
+  Fable $0.20, Opus 5 $0.14, Opus 5.5 $0.10, Sonnet 5 $0.04. So use
+  `claude-opus-5-5` at `medium` for tightly fenced briefs, and `fable` only
+  when the shape is genuinely undecided.
 
-Just-in-time beats preloading. Keep lightweight references — paths, a grep
-pattern, a line range — and pull the content when you actually need it.
-`rg -n "pattern" -C3`, `head`, `sed -n '40,80p'`, `git diff --stat` before
-`git diff`. Reading a whole 2,000-line file to check one function is the most
-common quiet waste in an orchestrator session.
+## The burst: pacing the fleet
 
-### 6. Compact and clear deliberately
+Running agents in parallel doesn't make any single task more expensive. It
+squeezes a day's spend into one 5-hour window. On the day the window ran out,
+spend went from $16 in the first half hour to $25 the next hour and $45 the
+hour after, as more workers started.
 
-- `/clear` between unrelated pieces of work costs nothing and resets the
-  tax. `/rename` first if you might want to `/resume`.
-- `/compact` at phase breaks — but `/compact` itself reads the conversation
-  it summarises, so it's a large request. Compacting at a natural boundary
-  (after a merge batch) beats compacting mid-task.
-- Steer it: `/compact Focus on open decisions, the current brief, and file
-  paths` keeps what Jarvis actually needs.
-- `OPEN.md` and `handoffs/` are the reason this is safe. State lives on
-  disk, so a clear costs continuity only if Jarvis forgot to write it down.
+**Now:**
 
-### 7. Protect the cache
+- `jarvis spawn` refuses a Claude worker past `JARVIS_MAX_CLAUDE` (Jarvis
+  included; default 3). Codex and OpenCode don't count toward the cap.
+- The band comes from the burn rate as well as the percentage. The
+  statusline tap saves Claude Code's own 5-hour reading, and the band turns
+  amber when that reading is on pace to use the whole window before it
+  resets. For example, 40% gone in the first hour is amber.
+- Mechanical and tightly fenced work goes to OpenCode first in every band,
+  and security work goes to Codex Sol, not only past 75%.
 
-The cached prefix holds for an hour. Coming back after a long gap reprocesses
-everything, so a long idle Jarvis session is worse than a fresh one. If
-you're away for hours, `/clear` on return and re-read `OPEN.md` — cheaper
-than a cache miss on a 150k-token history. Adding or removing MCP servers
-mid-session also invalidates the prefix.
+## Measuring it
 
-### 8. Trim the tool surface
+```bash
+handoffs/bin/jarvis usage --days 7
+```
 
-MCP tool definitions consume context; `/context` shows what's using space.
-Disable servers you're not using in this project, and prefer a CLI (`gh`,
-`superset`) over an MCP server that does the same job — a CLI adds no
-per-tool listing. Bloated tool sets also make the model slower to pick
-correctly, so this is a quality lever as much as a cost one.
+It reports what you spent coordinating versus building (the target is ≤ 0.3,
+down from about 1.13 when measured), the cost per merged handoff, the worst
+5-hour window, reloads after idle, and Jarvis's cost per turn by model.
+That last line is what lets the Jarvis model comparison in
+`eval/jarvis-model/` be checked against real sessions. Run it before and
+after any change to how Jarvis works. If a number doesn't move, the change
+didn't do what it was supposed to.
 
-### 9. Tune effort, not just model
+## Habits that still matter
 
-Effort governs the thinking budget, which is billed as output. `high` on a
-well-specified task is often no better than `medium` and costs more. Match
-effort to how much deliberation the task actually needs — the tier table
-already pairs each model with a sensible default, so deviate consciously.
-Fable models and Opus 5.5 always use extended thinking; you can't turn it
-off, so effort is the only lever — and one more reason routine work belongs
-on `sonnet` or the free tier, not the top tier.
-
-### 10. Filter verbose output at the source
-
-Test runs, logs and build output flood a context. Pipe them:
-`pytest -q 2>&1 | tail -30`, `rg -c ERROR`, `git diff --stat`. Put the
-filtered form *in the brief* so workers do it too. A `PreToolUse` hook can
-enforce it globally if it keeps happening.
-
-## What Jarvis should say out loud
-
-When a routing choice was made for cost reasons, say so in one line —
-"briefing this tightly so it can run on sonnet" — so the user can push back
-if they'd rather spend the tokens. Don't silently degrade work to save
-budget, and don't pad a brief with detail the worker doesn't need: a bloated
-brief costs the worker context at the start of every one of *its* turns too.
+- **A precise brief is a model downgrade.** Spending 2k tokens on a sharper
+  brief routinely saves a worker 50k of exploration and drops it a tier. The
+  five elements are in `SKILL.md`.
+- **Read narrowly and filter at the source:** `rg -n … -C3`, `sed -n`,
+  `git diff --stat`, and `pytest -q 2>&1 | tail -30` in the brief.
+- **Say it when you choose for cost.** For example: "briefing this tightly so
+  it runs on OpenCode". The user can then push back. Never degrade work
+  silently.

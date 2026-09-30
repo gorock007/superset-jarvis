@@ -3,10 +3,18 @@
 Two questions decide everything: **what kind of decision is in this task**,
 and **how much Claude usage is left**. Capability first, budget second.
 
-Jarvis itself is always Claude Code on the best model available (`fable`,
-effort `high`; `max` for the hardest planning). Codex is never Jarvis.
-Jarvis never downgrades itself — when usage gets tight it routes *work* away,
-so the remaining budget goes to coordination.
+Jarvis itself is Claude Code, started on `fable` at `high` by default. Codex is
+never Jarvis. Jarvis doesn't downgrade itself mid-session. When usage gets
+tight, it routes *work* away, so the remaining budget goes to coordination.
+Changing Jarvis's model means starting a fresh session. A `/model` switch
+rewrites the whole cache.
+
+Which model Jarvis should run on is being evaluated, not assumed. A Fable
+coordinator turn costs about twice an Opus 5.5 turn. `eval/jarvis-model/` in
+the plugin repo compares `fable`/`high`, `claude-opus-5-5`/`high` and
+`claude-opus-5-5`/`xhigh` on routing and handoff review. `jarvis usage` then
+reports Jarvis's real cost per turn by model, so the offline result can be
+checked against real sessions.
 
 ---
 
@@ -37,7 +45,7 @@ how saves get classified is top-tier work.
 | Tier | `--model` | `--effort` | Send it |
 | --- | --- | --- | --- |
 | Top | `fable` | `high` (`xhigh` when the task is both undecided and large) | New subsystems designed from scratch · data model / schema design · the classification & LLM pipeline, prompt and eval design · cross-cutting refactors touching many files at once · debugging where the cause is unknown · security-sensitive logic · briefs whose spec is ambiguous, contested, or came back with questions · anything Jarvis can't cheaply verify afterwards |
-| Workhorse | `claude-opus-5-5` (alias `opus`) | `high` | Well-specified feature work, however big: a new command or endpoint following an existing pattern · integrating a documented API · test suites · a migration with a known shape · a bug with a known repro · performance work with a target number · a second pass on something `fable` already designed |
+| Workhorse | `claude-opus-5-5` (alias `opus`) | `high`; `medium` when the brief is tightly fenced | Well-specified feature work, however big: a new command or endpoint following an existing pattern · integrating a documented API · test suites · a migration with a known shape · a bug with a known repro · performance work with a target number · a second pass on something `fable` already designed |
 | Light | `sonnet` | `medium` | Scoped tweaks, docs, reading and auditing, summarising diffs. Also Jarvis's own read-only subagents. |
 | Trivial | `haiku` | `low` | Renames, formatting, moving files, one-line fixes — but these are OpenCode's default slice; use `haiku` when OpenCode isn't configured or the task touches anything sensitive. |
 
@@ -170,14 +178,15 @@ tier up, and say so in `OPEN.md` so future sessions don't retry it.
 ## 4. The usage ladder
 
 Claude Code usage is shared across Jarvis and every Claude worker on the
-account, so the budget is one pool. Jarvis tracks which **band** it's in and
-records it in `handoffs/OPEN.md` so the band survives a context compaction.
+account, so the budget is one pool. `jarvis status` computes the **band**
+and writes it into `handoffs/OPEN.md`. `jarvis spawn` enforces it. The
+thresholds are in `handoffs/jarvis.conf`.
 
 | Band | Routing |
 | --- | --- |
-| **Green — under 50%** | The table above, unchanged. Light and trivial work still prefers OpenCode — free work is free in every band. |
-| **Amber — 50% and over** | **`fable` is off for workers.** Every brief that would have been `fable` spawns on `opus` at `high` instead, and says so in its header. Running `fable` workers get switched (below). Light and trivial tiers are unchanged — they're cheap. Jarvis stays on `fable`. |
-| **Red — 75% and over** | New top-tier and workhorse briefs go to **Codex** (`gpt-6-astra` / `gpt-5.6-sol`). Claude Code is kept for Jarvis and for workers already in flight. Anything OpenCode can safely take, it takes. Tell the user plainly that you've moved the fleet and why. |
+| **Green: under 50%, and not on pace to use the window** | The table above, unchanged. Light and trivial work still prefers OpenCode, because free work is free in every band. |
+| **Amber: 50% and over, or on pace to use the whole 5-hour window before it resets, or 7-day at 80%+** | **`fable` is off for workers.** Every brief that would have been `fable` spawns on `opus` at `high` instead, and says so in its header. Running `fable` workers get switched (below). Light and trivial tiers are unchanged — they're cheap. Jarvis stays on `fable`. |
+| **Red: 75% and over, a usage-limit message in a worker, a failed Claude spawn, or 7-day at 95%+** | New top-tier and workhorse briefs go to **Codex** (`gpt-6-astra` / `gpt-5.6-sol`). Claude Code is kept for Jarvis and for workers already in flight. Anything OpenCode can safely take, it takes. Tell the user plainly that you've moved the fleet and why. |
 
 ### Switching a running `fable` worker to `opus`
 
@@ -187,14 +196,12 @@ checkout and would be lost. Instead:
 1. `terminals send` it: *"Usage band changed. Finish the phase you're on, write a `status: partial` handoff with the exact file list and what's left, then stop."*
 2. When the handoff appears, review and commit what's done as normal.
 3. `terminals close` the terminal.
-4. Respawn from the **same brief** on `opus`/`high`, with the partial handoff
-   named in the prompt so the new worker picks up with the context:
+4. Change the brief header to `model: claude-opus-5-5 (amber band; fable-tier
+   task)`. Then respawn from the **same brief**, naming the partial handoff so
+   the new worker picks up where the old one stopped:
 
 ```bash
-superset agents create --workspace "$SUPERSET_WORKSPACE_ID" \
-  --agent claude --model claude-opus-5-5 --effort high \
-  --prompt "You are a Jarvis worker. Read AGENTS.md, then continue the task in handoffs/briefs/<file>.md. handoffs/merged/<partial>.md records what is already done — start from there. Put every question in one first handoff; otherwise build every phase through to done." \
-  --json
+handoffs/bin/jarvis spawn handoffs/briefs/<file>.md --after handoffs/merged/<partial>.md
 ```
 
 A worker already near the end of its last phase is worth letting finish
@@ -203,11 +210,19 @@ band is to stop *new* `fable` spend, not to churn.
 
 ### How Jarvis reads usage
 
-There is no `superset usage` CLI command — usage lives in the desktop app's
-Usage view and in Claude Code itself. In practice:
+There is no `superset usage` CLI command. Claude Code itself hands its
+statusline the account's rate-limit numbers: 5-hour and 7-day percentages
+and when each resets. The repo's statusline is `jarvis statusline`, a tap
+that saves those numbers to `handoffs/.jarvis/usage.json` and then runs the
+user's own statusline unchanged. Every Claude session in the repo refreshes
+the reading, workers included, since they all spend from one account.
 
-- **Jarvis's own session** is the proxy for the account: check it with
-  `/usage` in your own terminal at session start and after each merge batch.
+- **`jarvis band` / `jarvis status`** compute the band from that reading:
+  the percentage, how far into the window you are, and the pace (the
+  percentage projected to the end of the window). A reading older than 20
+  minutes says so.
+- **No reading** (`band: unknown`): ask the user for their `/usage` numbers
+  and write the band by hand.
 - **Worker terminals**: `terminals read` shows a usage-limit or rate-limit
   message when one is hit. One of those means Red for that fleet regardless
   of what the percentage said.
@@ -216,21 +231,24 @@ Usage view and in Claude Code itself. In practice:
 - **The user** may just tell you ("I'm at 60%"). Take it, record the band,
   don't re-derive it.
 
-Write the band and the time you read it into `OPEN.md`:
-`Usage band: amber (58%, 14:20) — fable off for workers`. Re-check it at
-least once per merge batch; bands only ever tighten within a session unless
-the user says the window reset.
+`jarvis status` writes the band and the time into `OPEN.md`
+(`Usage band: amber (5h 58% used, 14:20)`). A band computed from real
+readings can loosen as the window rolls on. That's correct: it reflects the
+actual pace.
 
-## 5. Fleet capacity (separate from usage)
+## 5. The Claude cap (separate from usage)
 
-The fleet is also "busy" — independent of the percentage — when:
+At most `JARVIS_MAX_CLAUDE` Claude sessions run at once, Jarvis included
+(`handoffs/jarvis.conf`, default 3: Jarvis plus two workers). `jarvis spawn`
+refuses a Claude worker past the cap, and Codex and OpenCode workers don't
+count toward it. The cap is about the 5-hour window, not about any one task.
+Eleven sessions at once is how a window ran out in two and a half hours.
 
-- `MAX_CLAUDE_WORKERS` (from `CLAUDE.md`, default 4) or more Claude workers
-  are in **Running workers** in `OPEN.md`, or
-- a spawn fails for any reason.
-
-Busy means: overflow the *next* brief to the Codex tier that matches its
-test result, security work first. Don't kill running workers to make room.
+At the cap, the next brief either waits under **To-do** or goes to the
+agent whose test it passes: OpenCode for fenced light or mechanical work,
+Codex for the rest (security first). Don't kill running workers to make
+room, and don't `--force` past the cap to go faster. A failed spawn also
+means the fleet is busy, and for Claude it means red.
 
 ## 6. If a model id is rejected
 

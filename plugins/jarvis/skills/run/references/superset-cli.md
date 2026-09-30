@@ -1,7 +1,13 @@
-# Superset CLI — what Jarvis actually runs
+# Superset CLI — what `handoffs/bin/jarvis` runs for you
 
 Verified against the Superset CLI reference (docs.superset.sh/cli/cli-reference),
 CLI v1.28. Run `superset <cmd> --help` if a flag looks different on your version.
+
+Day to day, Jarvis uses `handoffs/bin/jarvis spawn | status | merge`, which
+wrap the commands below and keep `OPEN.md` in step. Reach for the raw
+commands for what the script doesn't cover: `--attachment`,
+`--resume-session`, sending answers to a worker, and reading one screen in
+full.
 
 Inside a Superset terminal, `superset` is on PATH and `$SUPERSET_WORKSPACE_ID`
 is set. When `CLAUDE_CODE` or `CODEX_CLI` is set, output defaults to JSON.
@@ -47,7 +53,10 @@ or idle — `read` the screen to know.
 superset terminals create --workspace "$SUPERSET_WORKSPACE_ID" --command "pytest -q"
 ```
 
-Useful for long test runs you don't want blocking your own terminal.
+Useful for long test runs you don't want blocking your own terminal, and
+for `handoffs/bin/jarvis watch`, the model-free watcher that wakes Jarvis.
+A terminal can take a slash command too: `terminals send --text "/clear"`
+clears a Claude session, and the watcher relies on that.
 
 ## Starting Jarvis (the user does this, or the setup skill prints it)
 
@@ -55,7 +64,8 @@ Useful for long test runs you don't want blocking your own terminal.
 superset projects list                      # find <projectId>
 superset ws create --project <projectId> --name main --checkout local --local \
   --agent claude --model fable --effort high \
-  --prompt "You are Jarvis. Read CLAUDE.md and handoffs/OPEN.md, record your session id in OPEN.md, then tell me what's open."
+  --prompt "You are Jarvis. Use the jarvis:run skill: read handoffs/JARVIS.md and handoffs/OPEN.md, run handoffs/bin/jarvis start, then tell me what's open."
+superset terminals create --workspace <workspaceId> --command "handoffs/bin/jarvis watch"   # the free watcher
 ```
 
 `--checkout local` uses the project's existing files, index and branch
