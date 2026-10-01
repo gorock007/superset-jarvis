@@ -1,9 +1,10 @@
 # Which model should Jarvis run on?
 
 Jarvis coordinates. It routes briefs, reviews handoffs and decides what to
-commit. It has run on `fable`/`high`, and the usage evaluation found that a
+commit. It ran on `fable`/`high` until the usage evaluation found that a
 Fable coordinator turn costs about twice an Opus 5.5 turn. This folder
-measures whether the cheaper configs coordinate as well. It compares three:
+measures whether the cheaper configs coordinate as well. It compares three
+(the result is below: Jarvis moved to `opus55-high`):
 
 | config | `--model` | `--effort` |
 | --- | --- | --- |
@@ -75,6 +76,39 @@ config. One pass over all 48 fixtures is 144 calls, about **$15**, and
 `--repeat 3` is about **$45**. That is subscription usage, so check `/usage`
 first. Most of it is Fable. `--configs opus55-high:claude-opus-5-5:high,…`
 runs a subset.
+
+## Result (1 Oct 2026, `--repeat 3`, 432 calls, $53.51)
+
+**Jarvis now runs on `claude-opus-5-5` at `high`.**
+
+| config | routing tier ok | too low | too high | agent ok | review verdict ok | defect recall | false alarms | $/task | $ per correct | total $ |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `fable-high` | 95% (114/120) | 3 | 3 | 99% (119/120) | 100% (24/24) | 100% (18/18) | 0 | $0.214 | $0.223 | $30.84 |
+| `opus55-high` | 95% (114/120) | 3 | 3 | 100% (120/120) | 100% (24/24) | 100% (18/18) | 0 | $0.076 | $0.080 | $10.98 |
+| `opus55-xhigh` | 95% (114/120) | 3 | 3 | 100% (120/120) | 96% (23/24) | 100% (18/18) | 1 | $0.081 | $0.085 | $11.69 |
+
+- **The models agreed on every routing miss.** All three got the same two
+  briefs wrong, the same way, in every repeat:
+  - 22 (default page size) was called `trivial` instead of `light`. Both
+    tiers go to OpenCode, so these "too low" answers cost nothing in practice.
+  - 38 (dependency vulnerability review) was sent to Codex `gpt-5.6-sol` as
+    workhorse. The routing guide sends security work to Sol, so the label is
+    the likelier mistake.
+- **Every config caught every planted defect.** On fixture 06 every run
+  flagged the git violation, but the verdict varied: `commit` in 1 of 3
+  Fable runs, 2 of 3 `high` runs and 3 of 3 `xhigh` runs. The fixture
+  accepts either, as long as the finding is there.
+- **`xhigh` bought nothing.** It used 60% more output tokens than `high` and
+  produced the only false alarm (a `checks_missing` on clean fixture 08).
+- **Fable cost 2.8× as much per call** for the same answers, and used about
+  the same number of tokens as Opus. The gap is the price: in real sessions,
+  where Jarvis carries ~216k of context, it applies to every cache write
+  ($20 vs $8 per MTok).
+
+What this doesn't show: long multi-turn coordination, or how sharp Jarvis's
+own briefs are on undecided work. The in-situ comparison below checks that.
+Re-run this eval if `jarvis usage` shows more `corrected` or `escalated`
+outcomes after the switch.
 
 ## Pilot (30 Sep 2026, 9 calls, $0.98)
 

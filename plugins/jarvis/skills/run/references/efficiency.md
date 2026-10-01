@@ -1,7 +1,7 @@
 # Working cheaply without working worse
 
-Jarvis runs on the best model and coordinates the whole fleet, so it's the
-easiest session to overspend in. This file records where usage actually went
+Jarvis coordinates the whole fleet and carries the longest context, so it's
+the easiest session to overspend in. This file records where usage actually went
 when it was measured, and which mechanism now handles each cause.
 
 An earlier version of this file was only advice. The measurement showed the
@@ -145,8 +145,8 @@ handoffs/bin/jarvis usage --days 7
 It reports what you spent coordinating versus building (the target is ≤ 0.3,
 down from about 1.13 when measured), the cost per merged handoff, the worst
 5-hour window, reloads after idle, and Jarvis's cost per turn by model.
-That last line is what lets the Jarvis model comparison in
-`eval/jarvis-model/` be checked against real sessions. Run it before and
+That last line checks the Jarvis model comparison in `eval/jarvis-model/`
+(which moved Jarvis from `fable` to `claude-opus-5-5`) against real sessions. Run it before and
 after any change to how Jarvis works. If a number doesn't move, the change
 didn't do what it was supposed to.
 

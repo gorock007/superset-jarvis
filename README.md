@@ -10,7 +10,7 @@ terminals, reviews what they hand back, and commits it. You never manage the
 workers. You talk to Jarvis, and Jarvis manages them.
 
 ```
-you ──▶ Jarvis (Claude Code · fable · high)
+you ──▶ Jarvis (Claude Code · opus 5.5 · high)
             │  brief ──▶ worker A  claude / fable        ──▶ handoff ─┐
             │  brief ──▶ worker B  claude / sonnet       ──▶ handoff ─┤─▶ Jarvis reviews, commits, pushes
             │  brief ──▶ worker C  codex  / gpt-6-astra  ──▶ handoff ─┘   (image asset)
@@ -181,7 +181,7 @@ From a Superset terminal (find your project ID with `superset projects list`):
 
 ```bash
 superset ws create --project <projectId> --name main --checkout local --local \
-  --agent claude --model fable --effort high \
+  --agent claude --model claude-opus-5-5 --effort high \
   --prompt "You are Jarvis. Use the jarvis:run skill: read handoffs/JARVIS.md and handoffs/OPEN.md, run handoffs/bin/jarvis start, then tell me what's open."
 superset terminals create --workspace <workspaceId> --command "handoffs/bin/jarvis watch"
 ```
@@ -191,7 +191,7 @@ it costs no tokens. It wakes Jarvis when a handoff lands. Jarvis starts it
 itself if it isn't running.
 
 Or, in the Superset desktop app, open the project's shared-checkout
-workspace, launch Claude Code with model **fable** and effort **high**, and
+workspace, launch Claude Code with model **claude-opus-5-5** and effort **high**, and
 send the same first message.
 
 > `--checkout local` matters. Jarvis and its workers share one working copy,
@@ -327,12 +327,14 @@ finishes agentic coding work with fewer tokens, so it is the right home for
 well-specified briefs. It runs at `medium` when a brief is tightly fenced.
 Its thinking is always on, so Jarvis always passes `--effort`.
 
-**Jarvis itself starts on Claude Fable 5.1, but that choice is being
-tested.** A Fable coordinator turn costs about twice an Opus 5.5 turn.
-[`eval/jarvis-model/`](eval/jarvis-model/) compares `fable`/`high`,
-`claude-opus-5-5`/`high` and `claude-opus-5-5`/`xhigh` on routing and
-handoff review, and `jarvis usage` shows what each one costs per turn in
-real sessions.
+**Jarvis itself runs on Opus 5.5 at `high` too.** It used to run on Fable
+5.1. [`eval/jarvis-model/`](eval/jarvis-model/) tested `fable`/`high`,
+`claude-opus-5-5`/`high` and `claude-opus-5-5`/`xhigh` on 40 routing briefs
+and 8 handoff reviews with planted defects, three times each. All three
+picked the right tier for 95% of briefs and caught every planted defect.
+Fable cost 2.8× as much per call, and `xhigh` added only a false alarm.
+Fable is still the top tier for workers whose task has an undecided shape.
+`jarvis usage` shows Jarvis's real cost per turn by model.
 
 **OpenCode is the free tier.** Jarvis considers it before `sonnet` or `haiku`,
 because every small task it handles saves your Claude and Codex quota. Jarvis

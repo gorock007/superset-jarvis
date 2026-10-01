@@ -3,18 +3,20 @@
 Two questions decide everything: **what kind of decision is in this task**,
 and **how much Claude usage is left**. Capability first, budget second.
 
-Jarvis itself is Claude Code, started on `fable` at `high` by default. Codex is
+Jarvis itself is Claude Code, started on `claude-opus-5-5` at `high`. Codex is
 never Jarvis. Jarvis doesn't downgrade itself mid-session. When usage gets
 tight, it routes *work* away, so the remaining budget goes to coordination.
 Changing Jarvis's model means starting a fresh session. A `/model` switch
 rewrites the whole cache.
 
-Which model Jarvis should run on is being evaluated, not assumed. A Fable
-coordinator turn costs about twice an Opus 5.5 turn. `eval/jarvis-model/` in
-the plugin repo compares `fable`/`high`, `claude-opus-5-5`/`high` and
-`claude-opus-5-5`/`xhigh` on routing and handoff review. `jarvis usage` then
-reports Jarvis's real cost per turn by model, so the offline result can be
-checked against real sessions.
+Why Opus 5.5 and not Fable: `eval/jarvis-model/` in the plugin repo ran
+`fable`/`high`, `claude-opus-5-5`/`high` and `claude-opus-5-5`/`xhigh` on 40
+routing briefs and 8 handoff reviews with planted defects, three times each
+(1 Oct 2026). All three routed 95% of briefs to the right tier, missing the
+same two the same way, and all three caught every planted defect. Fable
+cost 2.8× as much per call. `xhigh` added one false alarm and nothing else.
+`jarvis usage` reports Jarvis's real cost per turn by model, so the offline
+result can be checked against real sessions.
 
 ---
 
@@ -71,8 +73,10 @@ fewer to wonder about when a handoff looks off. Everywhere else in these docs
 - It reports its work in plainer language, which makes handoffs easier to
   review, and reads screenshots and charts accurately without extra tooling.
 
-Jarvis itself stays on `fable`: Claude Fable 5.1 is the tier above Opus, and
-the coordinating session is where the undecided calls get made.
+Jarvis itself runs on `claude-opus-5-5` at `high`. Its own calls are routing
+and review, where Opus 5.5 matched Fable in the eval. A genuinely undecided
+shape gets its own `fable` worker, or a `fable` design brief (below), rather
+than a Fable coordinator paying Fable prices on every status check.
 
 **Design/build split.** When a task is top-tier only because nobody has
 decided the shape yet, consider splitting it: a short `fable` brief that
@@ -185,7 +189,7 @@ thresholds are in `handoffs/jarvis.conf`.
 | Band | Routing |
 | --- | --- |
 | **Green: under 50%, and not on pace to use the window** | The table above, unchanged. Light and trivial work still prefers OpenCode, because free work is free in every band. |
-| **Amber: 50% and over, or on pace to use the whole 5-hour window before it resets, or 7-day at 80%+** | **`fable` is off for workers.** Every brief that would have been `fable` spawns on `opus` at `high` instead, and says so in its header. Running `fable` workers get switched (below). Light and trivial tiers are unchanged — they're cheap. Jarvis stays on `fable`. |
+| **Amber: 50% and over, or on pace to use the whole 5-hour window before it resets, or 7-day at 80%+** | **`fable` is off for workers.** Every brief that would have been `fable` spawns on `opus` at `high` instead, and says so in its header. Running `fable` workers get switched (below). Light and trivial tiers are unchanged — they're cheap. Jarvis keeps its model. |
 | **Red: 75% and over, a usage-limit message in a worker, a failed Claude spawn, or 7-day at 95%+** | New top-tier and workhorse briefs go to **Codex** (`gpt-6-astra` / `gpt-5.6-sol`). Claude Code is kept for Jarvis and for workers already in flight. Anything OpenCode can safely take, it takes. Tell the user plainly that you've moved the fleet and why. |
 
 ### Switching a running `fable` worker to `opus`

@@ -167,19 +167,19 @@ Then:
 
 ```bash
 superset ws create --project <projectId> --name main --checkout local --local \
-  --agent claude --model fable --effort high \
+  --agent claude --model claude-opus-5-5 --effort high \
   --prompt "You are Jarvis. Use the jarvis:run skill: read handoffs/JARVIS.md and handoffs/OPEN.md, run handoffs/bin/jarvis start, then tell me what's open."
 superset terminals create --workspace <workspaceId> --command "handoffs/bin/jarvis watch"
 ```
 
   In the desktop app: open the project's shared-checkout workspace, launch
-  Claude Code on **fable** / **high** with that first message, and open a
+  Claude Code on **claude-opus-5-5** / **high** with that first message, and open a
   plain terminal running `handoffs/bin/jarvis watch`. Jarvis also starts
   the watcher itself if it finds none.
 
-  Jarvis's own model is still an open question. `eval/jarvis-model/` in the
-  plugin repo compares `fable`/`high` with `claude-opus-5-5` at `high` and
-  `xhigh`. Mention it if the user asks about cost.
+  Jarvis runs on `claude-opus-5-5` at `high`, not `fable`: in
+  `eval/jarvis-model/` it routed and reviewed as well as Fable at about a
+  third of the cost. Mention it if the user asks about cost.
 
 - Offer to commit: `chore: add Jarvis workflow`. Commit only if the user
   says yes. In a Jarvis repo, git belongs to Jarvis.
